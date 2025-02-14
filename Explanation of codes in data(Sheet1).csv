@@ -1,0 +1,88 @@
+Name,,,Label ,,,Data type ,
+patid                           ,,,patient ID ,,,continuous ,
+Patid                           ,,,practice ID ,,,continuous ,
+ gender,,,gender,,,categorical ,"1=male, 2=female"
+ethnic_group,,,groups,,,categorical ,
+yob,,,birth year,,,continuous ,
+index_date,,,date into cohort,,,continuous ,date
+end_fu,,,date end follow-up,,,continuous ,date
+end_fu_due_to_death,,,death reason for end-fu,,,categorical ,date
+earliest_hf_date,,,first date heart failure recorded in primary care record,,,continuous ,date
+earliest_af_date,,,first date AF recorded in primary care record,,,continuous ,date
+time1,,,start of an observation window,,,date- continuous ,date
+time2,,,end of an observation window,,,date- continuous ,date
+obs_num,,,observation window number,,,categorical ,1 to 6 
+hf,,,Heart failure ,,,categorical ,1 = yes
+hf_type,,,"Type e.g HFrEF, HFpEF",,,categorical ,
+af,,,AF,,,categorical ,1 = yes
+stroke_1Y,,,Stroke in 1st year following AF diagnosis,,,"1=Yes, 2=No (NB - this includes people who never had a stroke and those who had a stroke after 1st year f/u)",
+stroke_time,,,Time between AF diagnosis and 1st stroke (years),,,Continuous ,
+Anticoagulant,,,Coded prescription for anticoagulant within the observation window,,,"Categorical: No, VKA, DOAC",
+age,,,age at time of observation,,,continuous ,
+age_at_entry,,,age on entry into study ,,,continuous,
+earliest_aortic_plaq,,,date first aortic plaque,,,continuous ,
+aortic_plaq,,,aortic plaque (yes/no),,,categorical ,1 = yes
+earliest_ckd,,,first date CKD recorded,,,continuous ,
+ckd,,,chronic kidney disease code (yes/no),,,categorical ,1 = yes
+earliest_diab,,,first date diabetes recorded,,,continuous ,
+diab,,,diabetes code (yes/no),,,categorical ,1 = yes
+earliest_hypertension,,,first date hypertension recorded,,,continuous ,
+hypertension,,,hypertension code (yes/no),,,categorical ,1 = yes
+earliest_liver_dis,,,first date liver disease recorded,,,continuous ,
+ liver_dis,,,liver disease code (yes/no),,,categorical ,1 = yes
+earliest_migraine,,,first date migraine recorded,,,continuous ,
+migraine,,,migraine code (yes/no),,,categorical ,1 = yes
+earliest_thrombo,,,first date thrombo-embolism recorded,,,continuous ,
+thrombo,,,thrombo-embolism code (yes/no),,,categorical ,1 = yes
+earliest_vasc_dis_mi_pad,,,first date vac/mi/pad recorded,,,continuous ,
+vasc_dis_mi_pad,,,"vascular disease, mi or peripheral arterial disease code (yes/no)",,,categorical ,1 = yes
+HB_stroke_history,,,History of stroke prior to having a later major bleed (as per HAS-BLED score),,,"1 = yes stroke prior to bleed, 0 = no ",
+frailty_score,,,electronic frailty index ,,,continuous ,
+frailty_cat,,,frailty category,,,categorical ,
+number_comorbs,,,number of  comorbidities,,,continuous ,
+number_comorbs_cat,,,above but categorised ,,,categorical ,
+number_meds,,,number of meds,,,continuous,
+number_meds_cat,,,above but categorised ,,,categorical ,
+bmi,,,BMI,,,continuous,
+bmi_date,,,date BMI measured ,,,continuous,
+tc_mmol_L,,,cholesterol,,,continuous,
+tc_date,,,date cholesterol measured,,,continuous ,
+inr,,,INR,,,,
+inr_date,,,date of INR,,,continuous ,
+ttr,,,Time in therapuetic range for warfarn ,,,,
+scr_umol_L,,,creatinine ,,,,
+scr_date,,,creatinine date,,,continuous ,
+urine_creat_mmol_L,,,urine creatinine,,,,
+urine_creat_date,,,date of above ,,,continuous ,
+haemoglobin_gL   ,,,Hb,,,,
+ haemoglobin_date,,,date of above ,,,continuous ,
+eGFR,,,eGFR score,,,,
+eGFR_opr,,,Think eGFR category ,,,,
+eGFR_date,,,date of above ,,,continuous ,
+urine_albumin_mg_L,,,Urine albumin,,,,
+  urine_albumin_date,,,date of above ,,,continuous ,
+acr_mg_mmol,,,Urine ACR,,,,
+ acr_date ,,,date of above ,,,continuous ,
+ast_U_L,,,AST,,,,
+ast_date ,,,date of above ,,,continuous ,
+alp_U_L ,,,AlkPhos,,,,
+alp_date ,,,date of above ,,,continuous ,
+alt_U_L ,,,ALT ,,,,
+alt_date,,,date of above ,,,continuous ,
+smoke_date,,,Date smoking status recorded,,,continuous ,
+smoking_status,,,Smoking status ,,,,
+alcohol_date,,,Date alcohol recorded,,,continuous ,
+units_per_week,,,Units of alcohol,,,,
+current_drinker,,,If drinks alcohol,,,,
+earliest_alcohol_depend,,,Date of alcohol dependence first code,,,,
+alcohol_depend,,,Code for alcohol dependence,,,,
+stroke_primary_death,,,from here down these are where death listed as one of these causes (cat yes / no) as either primary or any cause. I have dates of death separately. ,,,,
+stroke_any_death,,,,,,,
+tia_primary_death,,,,,,,
+ tia_any_death,,,,,,,
+intracran_bleed_primary_death,,,,,,,
+ intracran_bleed_any_death,,,,,,,
+gastro_bleed_primary_death,,,,,,,
+ gastro_bleed_any_death,,,,,,,
+other_bleed_primary_death,,,,,,,
+other_bleed_any_death,,,,,,,
