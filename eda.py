@@ -238,7 +238,7 @@ if __name__ == "__main__":
 
     eligible_patients_df = filter_eligible_patients(df)
 
-    results_df = validate_chadsvasc(eligible_patients_df, "time1", "time2", "stroke_1Y")
+    results_df = validate_chadsvasc(eligible_patients_df, "time1", "end_fu", "stroke_1Y")
 
 
     # save results_df to markdown
