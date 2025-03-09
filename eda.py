@@ -141,12 +141,12 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
     original_rates_ci_upper = {score: np.nan for score in original_rates}
 
     results_df["Original Stroke Rate"] = results_df["CHADS-Vasc"].map(original_rates)
-    results_df["Original CI Lower"] = results_df["CHADS-Vasc"].map(
-        original_rates_ci_lower
-    )
-    results_df["Original CI Upper"] = results_df["CHADS-Vasc"].map(
-        original_rates_ci_upper
-    )
+    #results_df["Original CI Lower"] = results_df["CHADS-Vasc"].map(
+    #    original_rates_ci_lower
+    #)
+    #results_df["Original CI Upper"] = results_df["CHADS-Vasc"].map(
+    #    original_rates_ci_upper
+    #)
 
     results_df["Original Rate Within CI"] = (
         results_df["Original Stroke Rate"] >= results_df["95% CI Lower"]
@@ -161,8 +161,8 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
             "95% CI Lower",
             "95% CI Upper",
             "Original Stroke Rate",
-            "Original CI Lower",
-            "Original CI Upper",
+            # "Original CI Lower",
+            # "Original CI Upper",
             "Original Rate Within CI",
         ]
     ]
