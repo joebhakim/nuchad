@@ -1,0 +1,21 @@
+[project]
+name = "nuchad"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ipykernel>=6.29.5",
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.3",
+    "pandas>=2.2.3",
+    "scipy",
+    "seaborn>=0.13.2",
+    "tabulate>=0.9.0",
+]
+
+[tool.uv.workspace]
+members = ["scipy"]
+
+[tool.uv.sources]
+scipy = { workspace = true }

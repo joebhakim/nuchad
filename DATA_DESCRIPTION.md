@@ -2,6 +2,10 @@
 
 This document provides a comprehensive overview of the medical dataset structure and variables, with a focus on the actual column names as they appear in the data file for use in modeling.
 
+## NBs on the strangeness of the data:
+
+- only like 
+
 ## Data Structure
 
 The dataset is stored in CSV format with the following columns in order:

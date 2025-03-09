@@ -136,6 +136,40 @@ def create_continuous_matrix(df: pd.DataFrame) -> Tuple[np.ndarray, List[str], L
     
     return matrix, col_names, ranges
 
+def analyze_stroke_timing(df: pd.DataFrame) -> dict:
+    """
+    Analyze the timing of stroke events relative to time1
+    
+    Args:
+        df: Preprocessed DataFrame with patient data
+    
+    Returns:
+        Dictionary containing stroke timing statistics
+    """
+    # Calculate time to stroke for patients with stroke
+    stroke_patients = df[pd.notna(df['earliest_stroke_date'])]
+    
+    # Calculate time difference in days
+    stroke_patients['time_to_stroke'] = (stroke_patients['earliest_stroke_date'] - 
+                                       stroke_patients['time1']).dt.total_seconds() / (24 * 3600)
+    
+    # Categorize strokes by different time periods
+    strokes_within_two_days = stroke_patients[stroke_patients['time_to_stroke'] <= 2]
+    strokes_within_week = stroke_patients[stroke_patients['time_to_stroke'] <= 7]
+    strokes_within_year = stroke_patients[stroke_patients['time_to_stroke'] <= 365]
+    strokes_after_year = stroke_patients[stroke_patients['time_to_stroke'] > 365]
+    
+    return {
+        'total_patients': len(df),
+        'total_strokes': len(stroke_patients),
+        'strokes_within_two_days': len(strokes_within_two_days),
+        'strokes_within_week': len(strokes_within_week),
+        'strokes_within_year': len(strokes_within_year),
+        'strokes_after_year': len(strokes_after_year),
+        'median_time_to_stroke': stroke_patients['time_to_stroke'].median(),
+        'mean_time_to_stroke': stroke_patients['time_to_stroke'].mean()
+    }
+
 def create_longitudinal_visualization(df: pd.DataFrame) -> go.Figure:
     """
     Create an interactive visualization with timeline and covariate grids
@@ -146,10 +180,13 @@ def create_longitudinal_visualization(df: pd.DataFrame) -> go.Figure:
     Returns:
         Plotly Figure object
     """
+    # Calculate stroke timing statistics
+    stroke_stats = analyze_stroke_timing(df)
+    
     # Create figure with three subplots
     fig = make_subplots(
         rows=1, cols=3,
-        column_widths=[0.4, 0.3, 0.3],  # Adjusted widths to accommodate more variables
+        column_widths=[0.4, 0.3, 0.3],
         specs=[[{"type": "scatter"}, {"type": "heatmap"}, {"type": "heatmap"}]],
         horizontal_spacing=0.01,
         subplot_titles=("Timeline", "Binary Variables", "Continuous Variables")
@@ -157,15 +194,32 @@ def create_longitudinal_visualization(df: pd.DataFrame) -> go.Figure:
     
     # Plot timelines
     for _, patient in df.iterrows():
+        # Determine line color based on stroke timing
+        line_color = 'lightgray'  # Default for no stroke
+        if pd.notna(patient['earliest_stroke_date']):
+            time_to_stroke = (patient['earliest_stroke_date'] - patient['time1']).total_seconds() / (24 * 3600)
+            if time_to_stroke <= 2:
+                line_color = 'lightblue'  # Within 2 days
+            elif time_to_stroke <= 7:
+                line_color = 'lightgray'  # Within week
+            elif time_to_stroke <= 365:
+                line_color = 'mistyrose'  # Within year
+            else:
+                line_color = 'pink'  # After year
+        
         # Add observation period line
         fig.add_trace(
             go.Scatter(
                 x=[patient['time1'], patient['end_fu']],
                 y=[patient['patient_id'], patient['patient_id']],
                 mode='lines',
-                line=dict(color='saddlebrown', width=1),
+                line=dict(color=line_color, width=2),
                 showlegend=False,
-                hoverinfo='skip'
+                hoverinfo='text',
+                text=[f"Observation Period<br>"
+                      f"Start: {patient['time1'].strftime('%Y-%m-%d')}<br>"
+                      f"End: {patient['end_fu'].strftime('%Y-%m-%d')}<br>"
+                      f"{'No stroke' if pd.isna(patient['earliest_stroke_date']) else f'Stroke after {time_to_stroke:.1f} days'}"]
             ),
             row=1, col=1
         )
@@ -179,6 +233,7 @@ def create_longitudinal_visualization(df: pd.DataFrame) -> go.Figure:
                     mode='markers',
                     marker=dict(symbol='diamond', size=10, color='purple'),
                     name='AF Diagnosis',
+                    showlegend=False,
                     text=[f"AF Diagnosis<br>Date: {patient['earliest_af_date'].strftime('%Y-%m-%d')}"],
                     hoverinfo='text'
                 ),
@@ -187,14 +242,30 @@ def create_longitudinal_visualization(df: pd.DataFrame) -> go.Figure:
         
         # Add stroke event if present
         if pd.notna(patient['earliest_stroke_date']):
+            # Calculate time to stroke
+            time_to_stroke = (patient['earliest_stroke_date'] - patient['time1']).total_seconds() / (24 * 3600)
+            
+            # Color coding based on timing
+            if time_to_stroke <= 2:
+                stroke_color = 'darkblue'  # Within 2 days
+            elif time_to_stroke <= 7:
+                stroke_color = 'black'  # Within week
+            elif time_to_stroke <= 365:
+                stroke_color = 'darkred'  # Within year
+            else:
+                stroke_color = 'red'  # After year
+            
             fig.add_trace(
                 go.Scatter(
                     x=[patient['earliest_stroke_date']],
                     y=[patient['patient_id']],
                     mode='markers',
-                    marker=dict(symbol='star', size=12, color='red'),
+                    marker=dict(symbol='star', size=12, color=stroke_color),
                     name='Stroke',
-                    text=[f"Stroke<br>Date: {patient['earliest_stroke_date'].strftime('%Y-%m-%d')}"],
+                    showlegend=False,
+                    text=[f"Stroke<br>Date: {patient['earliest_stroke_date'].strftime('%Y-%m-%d')}<br>"
+                          f"Time from entry: {time_to_stroke:.1f} days<br>"
+                          f"{'Within first 2 days' if time_to_stroke <= 2 else 'Within first week' if time_to_stroke <= 7 else 'Within first year' if time_to_stroke <= 365 else 'After first year'}"],
                     hoverinfo='text'
                 ),
                 row=1, col=1
@@ -235,11 +306,18 @@ def create_longitudinal_visualization(df: pd.DataFrame) -> go.Figure:
         row=1, col=3
     )
     
-    # Update layout
+    # Update layout with enhanced stroke statistics
+    title = (f'Longitudinal Analysis of Stroke Events (n={stroke_stats["total_patients"]})<br>'
+             f'Strokes: {stroke_stats["total_strokes"]} total '
+             f'({stroke_stats["strokes_within_two_days"]} within 2 days, '
+             f'{stroke_stats["strokes_within_week"]} within week, '
+             f'{stroke_stats["strokes_within_year"]} within year, '
+             f'{stroke_stats["strokes_after_year"]} after)')
+    
     fig.update_layout(
-        title='Longitudinal Analysis of Stroke Events with Patient Characteristics',
-        showlegend=True,
-        height=800,
+        title=title,
+        showlegend=False,
+        height=1600,
         hovermode='closest'
     )
     
@@ -264,9 +342,23 @@ def create_longitudinal_visualization(df: pd.DataFrame) -> go.Figure:
     
     return fig
 
-def main():
+def main(data_path: str, sample_size: int = 500):
     # Load and preprocess data
-    df = load_and_preprocess_data('dummy_data.csv', sample_size=50)
+    df = load_and_preprocess_data(data_path, sample_size)
+    
+    # Analyze stroke timing
+    stroke_stats = analyze_stroke_timing(df)
+    
+    # Print detailed statistics
+    print("\nStroke Timing Analysis:")
+    print(f"Total patients: {stroke_stats['total_patients']}")
+    print(f"Total strokes: {stroke_stats['total_strokes']}")
+    print(f"Strokes within first 2 days: {stroke_stats['strokes_within_two_days']}")
+    print(f"Strokes within first week: {stroke_stats['strokes_within_week']}")
+    print(f"Strokes within first year: {stroke_stats['strokes_within_year']}")
+    print(f"Strokes after first year: {stroke_stats['strokes_after_year']}")
+    print(f"Median time to stroke: {stroke_stats['median_time_to_stroke']:.1f} days")
+    print(f"Mean time to stroke: {stroke_stats['mean_time_to_stroke']:.1f} days")
     
     # Create visualization
     fig = create_longitudinal_visualization(df)
@@ -274,7 +366,7 @@ def main():
     # Save the interactive HTML file
     fig.write_html('longitudinal_analysis.html')
     
-    print("Analysis complete! Open 'longitudinal_analysis.html' to view the interactive visualization.")
+    print("\nAnalysis complete! Open 'longitudinal_analysis.html' to view the interactive visualization.")
 
 if __name__ == "__main__":
-    main() 
+    main(data_path='dummy_data.csv', sample_size=500) 
