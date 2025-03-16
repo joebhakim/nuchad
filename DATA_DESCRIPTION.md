@@ -16,7 +16,7 @@ The dataset is stored in CSV format with the following columns in order:
 4. `earliest_stroke_date` - First date of stroke
 5. `end_fu` - End of follow-up date
 6. `end_fu_due_to_death` - Death as reason for end of follow-up (1=yes)
-7. `stroke_1Y` - Stroke in first year after AF (1=Yes, 2=No)
+7. `stroke_1Y` - Stroke in first year after AF (1=, 2=Stroke after 1 year, 0=No stroke within 1 year)
 8. `stroke_time` - Time between AF diagnosis and stroke
 9. `Anticoagulant` - Anticoagulation status ("No anticoagulant", "VKA", "DOAC")
 10. `age` - Age at time of observation
