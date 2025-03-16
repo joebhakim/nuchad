@@ -12,10 +12,6 @@ dependencies = [
     "scipy",
     "seaborn>=0.13.2",
     "tabulate>=0.9.0",
+    "scikit-learn>=1.4.0",
+    "scikit-survival>=0.22.0",
 ]
-
-[tool.uv.workspace]
-members = ["scipy"]
-
-[tool.uv.sources]
-scipy = { workspace = true }

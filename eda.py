@@ -243,3 +243,5 @@ if __name__ == "__main__":
 
     # save results_df to markdown
     results_df.to_markdown("results_df.md", numalign="left", stralign="left")
+
+    print(results_df.head().to_markdown(index=False, numalign="left", stralign="left"))
