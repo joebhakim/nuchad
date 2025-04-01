@@ -14,7 +14,8 @@ from scipy.stats import poisson
 
 def get_df():
 
-    df = pd.read_csv("./dummy_data.csv")
+    df = pd.read_csv("~/random_nuchad.csv").rename(columns={"patid": "patient_id"}).set_index("patient_id")
+    df = df.drop(columns=["Unnamed: 0"])
 
     # load data
     # df = pd.read_csv("./data/changauto4225.csv")
@@ -24,27 +25,13 @@ def get_df():
     # convert time1 and time2 to datetime objects
 
     # Change to format; 01-Jan-2020
-    df["time1"] = pd.to_datetime(df["time1"], format="%d-%b-%y", errors="raise")
-    df["time2"] = pd.to_datetime(df["time2"], format="%d-%b-%y", errors="raise")
+    df["time1"] = pd.to_datetime(df["time1"], format="%Y-%m-%d", errors="raise")
+    df["time2"] = pd.to_datetime(df["time2"], format="%Y-%m-%d", errors="raise")
 
-    # df['time2'] = pd.to_datetime(df['time2'], format='%d%b%Y', errors='coerce')
+    df["earliest_af_date"] = pd.to_datetime(df["earliest_af_date"], format="%d%b%Y", errors="raise")
+    df["earliest_stroke_date"] = pd.to_datetime(df["earliest_stroke_date"], format="%d%b%Y", errors="raise")
+    df["end_fu"] = pd.to_datetime(df["end_fu"], format="%d%b%Y", errors="raise")
 
-    # Handle potential NaT values after date conversion (important!)
-    # df.dropna(subset=['time1', 'time2'], inplace=True)
-
-    df
-
-    print("df.columns", df.columns)
-
-    for col in ["time1", "time2", "earliest_af_date", "earliest_stroke_date", "end_fu"]:
-        df[col] = pd.to_datetime(df[col], format="%d-%b-%y", errors="coerce")
-
-    # Display the converted dates
-    # print(df.head().to_markdown(index=False, numalign="left", stralign="left"))
-
-    # print(df.info())
-
-    # print(df.describe().to_markdown(numalign="left", stralign="left"))
 
     return df
 
@@ -77,8 +64,11 @@ def calculate_stroke_rate(group, total_patients, total_years, event_col="stroke_
     """Calculates the adjusted stroke rate per 100 patient-years."""
     if total_patients == 0 or pd.isna(total_years):  # Handle potential NaNs
         return 0
+    
+    # Stroke_1Y is 1=Yes, 2=No
 
-    num_strokes = group[event_col].sum()
+    num_strokes = group[group[event_col]==1].shape[0]
+
     return (num_strokes / total_years) * 100
 
 
@@ -99,7 +89,7 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
     Validates the CHADS-VASc score, handling datetime conversion.
     """
     df["CHADS-Vasc"] = df.apply(calculate_chadsvasc, axis=1)
-    # Calculate follow-up time in years
+    # Calculate follow-up time in years, time2_col should be end_fu not time2
     df["Follow_Up_Years"] = (
         (df[time2_col] - df[time1_col]) / np.timedelta64(1, "D") / 365.25
     )
@@ -125,6 +115,10 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
         )
 
     results_df = pd.DataFrame(results)
+
+    # TODO: RE: original rates
+    # FIND THE CITATION WHERE THESE COME FROM!? THANKS!
+    # CANGO: please find this AND units
     original_rates = {
         0: 0.0,
         1: 1.3,
@@ -137,6 +131,24 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
         8: 6.7,
         9: 15.2,
     }
+
+    # TEmporarily, https://www.mdcalc.com/calc/801/cha2ds2-vasc-score-atrial-fibrillation-stroke-risk#evidence
+    
+    original_rates = {
+        0: 0.2,
+        1: 0.6,
+        2: 2.2,
+        3: 3.2,
+        4: 4.8,
+        5: 7.2,
+        6: 9.7,
+        7: 11.2,
+        8: 10.8,
+        9: 12.2,
+    }
+
+    # TODO: RE: original rates
+    # CANGO: please find this AND units
     original_rates_ci_lower = {score: np.nan for score in original_rates}
     original_rates_ci_upper = {score: np.nan for score in original_rates}
 
@@ -185,7 +197,8 @@ def filter_eligible_patients(df):
     )
 
     # Filter patients who have a follow-up period of at least 1 year, observed with time2
-    # TODO: find out why time2 is not the same as end_fu
+    # TODO: find out why time2 is not the same as end_fu, TODO RE: ITS IN THE DOC
+    # TODO: these should be treated as censored, not omitted
     follow_up_mask = df["end_fu"] >= df["time1"] + pd.Timedelta(days=365)
 
     # Do diagostics on these masks: how many did we start with, how many do each prune? How many are pruned in this order:
@@ -207,9 +220,10 @@ def filter_eligible_patients(df):
     # earliest_af_date_minus_time1 = df['earliest_af_date'] - df['time1']
     # print(earliest_af_date_minus_time1.describe()) There are NONE, were good
 
-    # Progressive pruned lengths:
-
-    eligible_mask = af_diagnosis_mask & stroke_diagnosis_mask  & follow_up_mask
+    
+    # Eligibility: with AF, with enough followup, NOT NECESSARILY WITH STROKE
+    #eligible_mask = af_diagnosis_mask & stroke_diagnosis_mask  & follow_up_mask
+    eligible_mask = af_diagnosis_mask & follow_up_mask
 
     # Apply the mask to the DataFrame
     eligible_patients_df = df[eligible_mask]
