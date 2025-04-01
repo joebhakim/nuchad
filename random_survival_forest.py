@@ -321,6 +321,22 @@ class RandomSurvivalForestModel:
             
         return self.model.predict(X)
     
+    def predict(self, X):
+        """
+        Alias for predict_risk to maintain compatibility with model comparison framework.
+        
+        Parameters:
+        -----------
+        X : array-like, shape=(n_samples, n_features)
+            Data for prediction
+            
+        Returns:
+        --------
+        risk : array, shape=(n_samples,)
+            Predicted risk scores
+        """
+        return self.predict_risk(X)
+    
     def evaluate(self, X_test, y_test):
         """
         Evaluate model performance on test data.
