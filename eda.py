@@ -1,4 +1,5 @@
 # load dependencies
+from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
 
@@ -89,12 +90,30 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
     Validates the CHADS-VASc score, handling datetime conversion.
     """
     df["CHADS-Vasc"] = df.apply(calculate_chadsvasc, axis=1)
+
+    # For each chadsvasc level, calculate the rate of
+
+
     # Calculate follow-up time in years, time2_col should be end_fu not time2
     df["Follow_Up_Years"] = (
         (df[time2_col] - df[time1_col]) / np.timedelta64(1, "D") / 365.25
     )
+    
+
+    df['anticoag_binary'] = df['Anticoagulant'].apply(lambda x: 0 if x == 'No anticoagulant' else 1)
+    # Calculate the rate of Anticoagulant use for each chadsvasc level
+    anticoagulant_rates = df.groupby("CHADS-Vasc").agg(
+        {
+            "anticoag_binary": "mean",
+        }
+    )
 
     grouped = df.groupby("CHADS-Vasc")
+
+    print(grouped.head().to_markdown(index=False, numalign="left", stralign="left"))
+
+    # Calculate the rate of Anticoagulant use for each chadsvasc level
+
     results = []
     for score, group in grouped:
         total_patients = len(group)
@@ -133,7 +152,7 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
     }
 
     # TEmporarily, https://www.mdcalc.com/calc/801/cha2ds2-vasc-score-atrial-fibrillation-stroke-risk#evidence
-    
+
     original_rates = {
         0: 0.2,
         1: 0.6,
@@ -248,14 +267,92 @@ def more_checking(df):
 if __name__ == "__main__":
     df = get_df()
 
-    # more_checking(df)
+    #more_checking(df)
 
     eligible_patients_df = filter_eligible_patients(df)
 
     results_df = validate_chadsvasc(eligible_patients_df, "time1", "end_fu", "stroke_1Y")
 
-
     # save results_df to markdown
     results_df.to_markdown("results_df.md", numalign="left", stralign="left")
 
     print(results_df.head().to_markdown(index=False, numalign="left", stralign="left"))
+
+
+
+def plot_already_results():
+    observed_rates = {
+        0: 0.115974,
+        1: 0.180523,
+        2: 0.397818,
+        3: 0.678945,
+        4: 1.12856,
+        5: 2.86256,
+        6: 7.32759,
+        7: 10.1742,
+        8: 11.1649,
+        9: 14.8506,
+    }
+
+    observed_rates_ci_lower = {
+        0: 0.0802899,
+        1: 0.14995,
+        2: 0.358451,
+        3: 0.629987,
+        4: 1.05917,
+        5: 2.68667,
+        6: 6.8414,
+        7: 8.97498,
+        8: 8.37367,
+        9: 5.56897,
+    }
+
+    observed_rates_ci_upper = {
+        0: 0.154632,
+        1: 0.212551,
+        2: 0.438221,
+        3: 0.728827,
+        4: 1.1991,
+        5: 3.0413,
+        6: 7.82247,
+        7: 11.4122,
+        8: 14.1422,
+        9: 25.9885,
+    }
+    
+
+    original_rates = {
+        0: 0.2,
+        1: 0.6,
+        2: 2.2,
+        3: 3.2,
+        4: 4.8,
+        5: 7.2,
+        6: 9.7,
+        7: 11.2,
+        8: 10.8,
+        9: 12.2,
+    }
+
+    # Plot observed rates vs original rates
+    plt.figure(figsize=(10, 6))
+    plt.plot(list(observed_rates.keys()), list(observed_rates.values()), label='Observed Rates', marker='o')
+    plt.plot(list(original_rates.keys()), list(original_rates.values()), label='Original Rates', marker='x')
+    plt.xlabel('CHADS-VASc Score')
+    plt.ylabel('Stroke Rate')
+    plt.title('Observed vs Original Stroke Rates')
+
+    # Add confidence intervals
+    for i in range(len(observed_rates)):
+        plt.fill_between(
+            [i, i],
+            [observed_rates_ci_lower[i], observed_rates_ci_upper[i]],
+            color='gray',
+            alpha=0.8
+        )
+
+
+    plt.legend()
+    plt.show()
+
+    plt.savefig('observed_vs_original_stroke_rates.png', dpi=300)
