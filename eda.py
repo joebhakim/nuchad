@@ -264,22 +264,6 @@ def more_checking(df):
     print(earliest_stroke_date_minus_time1.describe())
 
 
-if __name__ == "__main__":
-    df = get_df()
-
-    #more_checking(df)
-
-    eligible_patients_df = filter_eligible_patients(df)
-
-    results_df = validate_chadsvasc(eligible_patients_df, "time1", "end_fu", "stroke_1Y")
-
-    # save results_df to markdown
-    results_df.to_markdown("results_df.md", numalign="left", stralign="left")
-
-    print(results_df.head().to_markdown(index=False, numalign="left", stralign="left"))
-
-
-
 def plot_already_results():
     observed_rates = {
         0: 0.115974,
@@ -346,7 +330,8 @@ def plot_already_results():
     for i in range(len(observed_rates)):
         plt.fill_between(
             [i, i],
-            [observed_rates_ci_lower[i], observed_rates_ci_upper[i]],
+            observed_rates_ci_lower[i],
+            observed_rates_ci_upper[i],
             color='gray',
             alpha=0.8
         )
@@ -355,4 +340,23 @@ def plot_already_results():
     plt.legend()
     plt.show()
 
+    plt.savefig('observed_vs_original_stroke_rates.png', dpi=300)
+
+
+if __name__ == "__main__":
+    df = get_df()
+
+    #more_checking(df)
+
+    eligible_patients_df = filter_eligible_patients(df)
+
+    results_df = validate_chadsvasc(eligible_patients_df, "time1", "end_fu", "stroke_1Y")
+
+    # save results_df to markdown
+    results_df.to_markdown("results_df.md", numalign="left", stralign="left")
+
+    print(results_df.head().to_markdown(index=False, numalign="left", stralign="left"))
+    
+    # Generate and save the plot
+    plot_already_results()
     plt.savefig('observed_vs_original_stroke_rates.png', dpi=300)

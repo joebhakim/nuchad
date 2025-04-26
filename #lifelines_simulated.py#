@@ -1,0 +1,88 @@
+import numpy as np
+import pandas as pd
+from scipy.stats import norm, expon␍
+from lifelines import CoxPHFitter␍
+import ace_tools␍
+␍
+# Simulation parameters␍
+np.random.seed(42)␍
+N = 1000␍
+␍
+# Original vs. UK moments␍
+orig_params = {␍
+    'Age':       {'mean': 63.9,  'sd': 10.6},␍
+    'Hypertension': {'p': 4964/9722},␍
+    'Diabetes':     {'p': 1032/9722},␍
+    'HeartFailure': {'p': 100/9722},␍
+    'StrokeTIA':    {'p': 278/9722},␍
+    'VascularDx':   {'p': 1188/9722},␍
+    'CurrentSmoker':{'p': 1242/9722},␍
+}␍
+␍
+uk_params = {␍
+    'Age':       {'mean': 73.83, 'sd': 10.72},␍
+    'Hypertension': {'p': 0.566},␍
+    'Diabetes':     {'p': 0.139},␍
+    'HeartFailure': {'p': 0.171},␍
+    'StrokeTIA':    {'p': 0.032},␍
+    'VascularDx':   {'p': 0.153},␍
+    'CurrentSmoker':{'p': 0.106},␍
+}␍
+␍
+# 1. Simulate UK-like covariates␍
+df_sim = pd.DataFrame({␍
+    'Age': np.random.normal(loc=uk_params['Age']['mean'], scale=uk_params['Age']['sd'], size=N),␍
+    'Hypertension': np.random.binomial(1, uk_params['Hypertension']['p'], size=N),␍
+    'Diabetes':     np.random.binomial(1, uk_params['Diabetes']['p'], size=N),␍
+    'HeartFailure': np.random.binomial(1, uk_params['HeartFailure']['p'], size=N),␍
+    'StrokeTIA':    np.random.binomial(1, uk_params['StrokeTIA']['p'], size=N),␍
+    'VascularDx':   np.random.binomial(1, uk_params['VascularDx']['p'], size=N),␍
+    'CurrentSmoker':np.random.binomial(1, uk_params['CurrentSmoker']['p'], size=N),␍
+})␍
+␍
+# 2. Compute density-ratio weights␍
+def compute_weight(row):␍
+    # Continuous: Age␍
+    μo, σo = orig_params['Age']['mean'], orig_params['Age']['sd']␍
+    μu, σu = uk_params['Age']['mean'], uk_params['Age']['sd']␍
+    w = norm.pdf(row['Age'], loc=μo, scale=σo) / norm.pdf(row['Age'], loc=μu, scale=σu)␍
+    # Binary covariates␍
+    for col in ['Hypertension','Diabetes','HeartFailure','StrokeTIA','VascularDx','CurrentSmoker']:␍
+        p_o = orig_params[col]['p']␍
+        p_u = uk_params[col]['p']␍
+        x = row[col]␍
+        w *= (p_o**x * (1-p_o)**(1-x)) / (p_u**x * (1-p_u)**(1-x))␍
+    return w␍
+␍
+df_sim['weight'] = df_sim.apply(compute_weight, axis=1)␍
+␍
+# 3. Simulate survival times under a simple hazard model␍
+# True betas for each covariate (log-HR)␍
+betas = {␍
+    'Age': 0.02,␍
+    'Hypertension': 0.5,␍
+    'Diabetes': 0.4,␍
+    'HeartFailure': 0.6,␍
+    'StrokeTIA': 0.3,␍
+    'VascularDx': 0.5,␍
+    'CurrentSmoker': 0.2,␍
+}␍
+# Baseline hazard rate␍
+lambda0 = 0.1␍
+␍
+# Compute individual hazards and draw event times␍
+linear_pred = sum(df_sim[c]*b for c,b in betas.items())␍
+hazard = lambda0 * np.exp(linear_pred)␍
+df_sim['event_time'] = expon(scale=1/hazard).rvs(size=N)␍
+␍
+# Censoring times (random)␍
+df_sim['censor_time'] = expon(scale=10).rvs(size=N)␍
+df_sim['duration'] = np.minimum(df_sim['event_time'], df_sim['censor_time'])␍
+df_sim['event'] = (df_sim['event_time'] <= df_sim['censor_time']).astype(int)␍
+␍
+# 4. Fit weighted Cox model␍
+cph = CoxPHFitter()␍
+cph.fit(df_sim, duration_col='duration', event_col='event', weights_col='weight', robust=True)␍
+␍
+# 5. Display results␍
+ace_tools.display_dataframe_to_user("Weighted Cox Model Summary", cph.summary)
