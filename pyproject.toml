@@ -3,15 +3,15 @@ name = "nuchad"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "ipykernel>=6.29.5",
-    "matplotlib>=3.10.1",
-    "numpy>=2.2.3",
-    "pandas>=2.2.3",
-    "scipy",
-    "seaborn>=0.13.2",
-    "tabulate>=0.9.0",
-    "scikit-learn>=1.4.0",
-    "scikit-survival>=0.22.0",
+authors = [
+    { name = "Joe Hakim", email = "joe@ketryx.com" }
 ]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+nuchad = "nuchad:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

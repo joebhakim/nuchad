@@ -1,3 +1,7 @@
+# Other docs
+
+https://docs.google.com/document/d/1bc00rUIiBYlEEOH0K0QK6h4h4q1NZeUNjxw3L1zOLvc/edit?tab=t.0
+
 # CHADS-VASc Analysis Project
 
 This repository contains scripts for analyzing CHADS-VASc score performance in predicting stroke risk among patients with atrial fibrillation (AF). The analysis includes:

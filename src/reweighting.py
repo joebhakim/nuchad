@@ -6,10 +6,93 @@ import scipy.stats as stats
 from scipy.optimize import minimize
 from sklearn.metrics import roc_auc_score, roc_curve, confusion_matrix
 import os
-from eda import get_df, filter_eligible_patients, calculate_chadsvasc
+import sys
+
+# Adjust path for both running from root or src directory
+if os.path.basename(os.getcwd()) == 'src':
+    # We're running from src directory
+    DATA_DIR = '../data'
+    RESULTS_DIR = '../results'
+else:
+    # We're running from root directory
+    DATA_DIR = 'data'
+    RESULTS_DIR = 'results'
 
 # Create directories if they don't exist
-os.makedirs('../results', exist_ok=True)
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+def get_df(data_path=None):
+    """Load and prepare the dataset"""
+    if data_path is None:
+        data_path = os.path.join(DATA_DIR, 'random_nuchad.csv')
+    
+    df = pd.read_csv(data_path)
+    
+    if 'patid' in df.columns:
+        df = df.rename(columns={"patid": "patient_id"}).set_index("patient_id")
+    
+    if 'Unnamed: 0' in df.columns:
+        df = df.drop(columns=["Unnamed: 0"])
+
+    # Convert date columns to datetime
+    date_cols = ['time1', 'time2', 'earliest_af_date', 'earliest_stroke_date', 'end_fu']
+    for col in date_cols:
+        if col in df.columns:
+            if col in ['time1', 'time2']:
+                df[col] = pd.to_datetime(df[col], format="%Y-%m-%d", errors='coerce')
+            else:
+                df[col] = pd.to_datetime(df[col], format="%d%b%Y", errors='coerce')
+
+    return df
+
+def calculate_chadsvasc(row):
+    """Calculates the CHADS-VASc score for a single patient"""
+    score = 0
+    # Congestive heart failure
+    if 'hf' in row and pd.notna(row["hf"]):
+        score += int(row["hf"])
+    # Hypertension
+    if 'hypertension' in row and pd.notna(row["hypertension"]):
+        score += int(row["hypertension"])
+    # Age >= 75 (2 points)
+    if 'age' in row and pd.notna(row["age"]):
+        score += 2 * int(row["age"] >= 75)
+        # Age 65-74 (1 point)
+        score += int(65 <= row["age"] < 75)
+    # Diabetes mellitus
+    if 'diab' in row and pd.notna(row["diab"]):
+        score += int(row["diab"])
+    # Stroke/TIA/Thromboembolism (2 points)
+    if ('thrombo' in row and pd.notna(row["thrombo"])) and ('HB_stroke_history' in row and pd.notna(row["HB_stroke_history"])):
+        score += 2 * int(row["thrombo"] or row["HB_stroke_history"])
+    # Vascular disease
+    if 'vasc_dis_mi_pad' in row and pd.notna(row["vasc_dis_mi_pad"]):
+        score += int(row["vasc_dis_mi_pad"])
+    # Sex (Female)
+    if 'gender' in row and pd.notna(row["gender"]):
+        score += int(row["gender"] != 1)  # 1 = male, 2 = female
+    return score
+
+def filter_eligible_patients(df):
+    """
+    Filters patients who are eligible for the study
+    """
+    # Filter patients who have an AF diagnosis before time1
+    af_diagnosis_mask = (df["earliest_af_date"] <= df["time1"])
+    
+    # Filter patients who have a follow-up period of at least 1 year
+    follow_up_mask = df["end_fu"] >= df["time1"] + pd.Timedelta(days=365)
+    
+    # Eligibility: with AF and with enough followup
+    eligible_mask = af_diagnosis_mask & follow_up_mask
+    
+    # Apply the mask to the DataFrame
+    eligible_patients_df = df[eligible_mask].copy()
+    
+    # Add a flag indicating complete follow-up
+    eligible_patients_df['fu_complete'] = 1
+    
+    return eligible_patients_df
 
 def map_variables(df):
     """
@@ -366,13 +449,13 @@ def plot_weighted_vs_original(df, weights, outcome_col):
     
     # Save the plot
     plt.tight_layout()
-    plt.savefig('../results/weighted_vs_original_rates.png')
+    plt.savefig(os.path.join(RESULTS_DIR, 'weighted_vs_original_rates.png'))
     plt.close()
 
 if __name__ == "__main__":
     # Load data
     print("Loading and preparing data...")
-    df = get_df(data_path='../data/dummy_data.csv')
+    df = get_df()  # Use default path constructed from DATA_DIR
     
     # Display dataset statistics
     print(f"Total patients in dataset: {len(df)}")
@@ -381,7 +464,6 @@ if __name__ == "__main__":
     
     # Filter eligible patients
     eligible_df = filter_eligible_patients(df)
-    print(f"Patients with follow-up: {sum(eligible_df['fu_complete'])}")
     print(f"Eligible patients after filtering: {len(eligible_df)}")
     
     # Check smoking status values
@@ -392,8 +474,10 @@ if __name__ == "__main__":
     
     # Calculate follow-up years if not present
     if 'Follow_Up_Years' not in mapped_df.columns:
-        # Assuming end_fu is in days, convert to years
-        mapped_df['Follow_Up_Years'] = mapped_df['end_fu'] / 365.25
+        # Calculate follow-up time in years
+        mapped_df['Follow_Up_Years'] = (
+            (mapped_df['end_fu'] - mapped_df['time1']).dt.days / 365.25
+        )
     
     # Define variables for weighting
     weight_variables = [
@@ -463,8 +547,8 @@ if __name__ == "__main__":
     print(f"Trimmed effective sample size: {trim_ess:.1f} ({trim_pct:.1f}% of actual)")
     
     # Plot weight distribution
-    plot_weight_distribution(weights, trimmed_weights, '../results/weight_distribution.png')
-    print("Weight distribution plot saved to '../results/weight_distribution.png'")
+    plot_weight_distribution(weights, trimmed_weights, os.path.join(RESULTS_DIR, 'weight_distribution.png'))
+    print(f"Weight distribution plot saved to '{os.path.join(RESULTS_DIR, 'weight_distribution.png')}'")
     
     # Compute reweighted CHADS-VASc performance
     print("\nComputing reweighted CHADS-VASc performance...")
@@ -472,10 +556,10 @@ if __name__ == "__main__":
     
     # Plot weighted vs original rates
     plot_weighted_vs_original(mapped_df, trimmed_weights, 'stroke_1Y')
-    print("Rate comparison plot saved to '../results/weighted_vs_original_rates.png'")
+    print(f"Rate comparison plot saved to '{os.path.join(RESULTS_DIR, 'weighted_vs_original_rates.png')}'")
     
     # Save results to markdown
-    with open('../results/weighted_chadsvasc_results.md', 'w') as f:
+    with open(os.path.join(RESULTS_DIR, 'weighted_chadsvasc_results.md'), 'w') as f:
         f.write("# Reweighted CHADS-VASc Performance Results\n\n")
         f.write("## Parameter Comparison\n\n")
         
@@ -509,4 +593,4 @@ if __name__ == "__main__":
         f.write("### Stroke Rates by CHADS-VASc Score\n\n")
         f.write("![Stroke Rates](weighted_vs_original_rates.png)\n")
     
-    print("\nResults saved to '../results/weighted_chadsvasc_results.md'") 
+    print(f"\nResults saved to '{os.path.join(RESULTS_DIR, 'weighted_chadsvasc_results.md')}'") 
