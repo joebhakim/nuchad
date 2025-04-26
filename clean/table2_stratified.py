@@ -1,7 +1,11 @@
 import pandas as pd
 import numpy as np
+import os
 from scipy import stats
-from eda import get_df, filter_eligible_patients, calculate_chadsvasc
+from eda import get_df, filter_eligible_patients, calculate_chadsvasc, calculate_stroke_rate, confidence_interval
+
+# Create directories if they don't exist
+os.makedirs('../results', exist_ok=True)
 
 def stratify_by_chadsvasc(df):
     """
@@ -314,6 +318,83 @@ def compute_continuous_stats(df, var):
     else:
         return "No data"
 
+def get_df_local():
+    """Local implementation of get_df to use correct file path"""
+    df = pd.read_csv("data/random_nuchad.csv").rename(columns={"patid": "patient_id"}).set_index("patient_id")
+    df = df.drop(columns=["Unnamed: 0"])
+
+    # convert time1 and time2 to datetime objects
+    df["time1"] = pd.to_datetime(df["time1"], format="%Y-%m-%d", errors="raise")
+    df["time2"] = pd.to_datetime(df["time2"], format="%Y-%m-%d", errors="raise")
+
+    df["earliest_af_date"] = pd.to_datetime(df["earliest_af_date"], format="%d%b%Y", errors="raise")
+    df["earliest_stroke_date"] = pd.to_datetime(df["earliest_stroke_date"], format="%d%b%Y", errors="raise")
+    df["end_fu"] = pd.to_datetime(df["end_fu"], format="%d%b%Y", errors="raise")
+
+    return df
+
+def generate_stratified_table():
+    """
+    Generate a table of stroke rates by CHADS-VASc score, stratified by sex.
+    """
+    # Create results directory if it doesn't exist
+    os.makedirs('results', exist_ok=True)
+    
+    # Get the dataframe and filter eligible patients
+    df = get_df_local()
+    df = filter_eligible_patients(df)
+    
+    # Calculate CHADS-VASc score
+    df["CHADS-Vasc"] = df.apply(calculate_chadsvasc, axis=1)
+    
+    # Calculate follow-up time in years
+    df["Follow_Up_Years"] = (
+        (df["end_fu"] - df["time1"]) / np.timedelta64(1, "D") / 365.25
+    )
+    
+    # Process separately for males and females
+    results = []
+    
+    for gender_value, gender_label in [(1, "Male"), (2, "Female")]:
+        gender_df = df[df["gender"] == gender_value]
+        
+        grouped = gender_df.groupby("CHADS-Vasc")
+        
+        for score, group in grouped:
+            total_patients = len(group)
+            total_years = group["Follow_Up_Years"].sum()
+            observed_rate = calculate_stroke_rate(
+                group, total_patients, total_years, event_col="stroke_1Y"
+            )
+            ci = confidence_interval(observed_rate, total_years)
+            
+            results.append({
+                "Gender": gender_label,
+                "CHADS-Vasc": score,
+                "Number of Patients": total_patients,
+                "Total Patient Years": total_years,
+                "Observed Stroke Rate": observed_rate,
+                "95% CI Lower": ci[0],
+                "95% CI Upper": ci[1],
+            })
+    
+    # Convert to DataFrame
+    results_df = pd.DataFrame(results)
+    
+    # Sort by gender and score
+    results_df = results_df.sort_values(by=['Gender', 'CHADS-Vasc'])
+    
+    # Save to markdown file
+    markdown_table = results_df.to_markdown(index=False)
+    with open('results/table2_stratified.md', 'w') as f:
+        f.write(markdown_table)
+    
+    print(f"Stratified table saved to results/table2_stratified.md")
+    print("\nStratified Table by Sex:\n")
+    print(markdown_table)
+    
+    return results_df
+
 if __name__ == "__main__":
     # Load data
     df = get_df()
@@ -324,10 +405,13 @@ if __name__ == "__main__":
     # Generate stratified Table 2
     stratified_table2 = create_stratified_table2(eligible_df)
     
-    # Save as markdown file
-    with open('table2_stratified.md', 'w') as f:
+    # Save as markdown file in results directory
+    with open('../results/table2_stratified.md', 'w') as f:
         f.write("# Table 2: Characteristics of Eligible Patients Stratified by CHADS-VASc Risk\n\n")
         f.write(stratified_table2.to_markdown(index=False))
     
     # Print success message
-    print("Stratified Table 2 has been generated and saved as 'table2_stratified.md'") 
+    print("Stratified Table 2 has been generated and saved as '../results/table2_stratified.md'")
+
+    results_table = generate_stratified_table()
+    print(results_table.to_markdown(index=False)) 

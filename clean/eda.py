@@ -2,6 +2,7 @@
 from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
+import os
 
 # import seaborn as sns
 # import matplotlib.pyplot as plt
@@ -9,13 +10,17 @@ import numpy as np
 
 from scipy.stats import poisson
 
+# Create directories if they don't exist
+os.makedirs('../data', exist_ok=True)
+os.makedirs('../results', exist_ok=True)
+
 # load data
 # df = pd.read_csv("./data/changauto4225.csv")
 
 
 def get_df():
-
-    df = pd.read_csv("~/random_nuchad.csv").rename(columns={"patid": "patient_id"}).set_index("patient_id")
+    # Updated path to use data directory
+    df = pd.read_csv("../data/random_nuchad.csv").rename(columns={"patid": "patient_id"}).set_index("patient_id")
     df = df.drop(columns=["Unnamed: 0"])
 
     # load data
@@ -338,9 +343,10 @@ def plot_already_results():
 
 
     plt.legend()
+    plt.tight_layout()
+    # Save to results directory
+    plt.savefig('../results/observed_vs_original_stroke_rates.png', dpi=300)
     plt.show()
-
-    plt.savefig('observed_vs_original_stroke_rates.png', dpi=300)
 
 
 if __name__ == "__main__":
@@ -352,11 +358,10 @@ if __name__ == "__main__":
 
     results_df = validate_chadsvasc(eligible_patients_df, "time1", "end_fu", "stroke_1Y")
 
-    # save results_df to markdown
-    results_df.to_markdown("results_df.md", numalign="left", stralign="left")
+    # save results_df to markdown in results directory
+    results_df.to_markdown("../results/results_df.md", numalign="left", stralign="left")
 
     print(results_df.head().to_markdown(index=False, numalign="left", stralign="left"))
     
     # Generate and save the plot
-    plot_already_results()
-    plt.savefig('observed_vs_original_stroke_rates.png', dpi=300) 
+    plot_already_results() 

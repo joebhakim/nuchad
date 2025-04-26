@@ -5,7 +5,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import os
 from eda import get_df
+
+# Create directories if they don't exist
+os.makedirs('../results', exist_ok=True)
 
 # Get the dataframe
 df = get_df()
@@ -58,7 +62,8 @@ if 'time1' in df.columns:
 
 # Layout adjustments
 plt.tight_layout()
-plt.savefig('end_fu_distribution.png')
+# Save to results directory
+plt.savefig('../results/end_fu_distribution.png', dpi=300)
 plt.show()
 
-print("\nVisualization saved as 'end_fu_distribution.png'") 
+print("\nVisualization saved as '../results/end_fu_distribution.png'") 
