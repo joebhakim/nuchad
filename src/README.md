@@ -15,7 +15,7 @@ This repository contains scripts for analyzing CHADS-VASc score performance in p
 ## Prerequisites
 
 - Python 3.6+
-- Required packages: pandas, numpy, matplotlib, seaborn, scipy
+- Required packages: pandas, numpy, matplotlib, seaborn, scipy, scikit-learn
 - Dataset: A patient-level dataset containing AF patients with the following key columns:
   - `time1`: Start of observation window
   - `earliest_af_date`: Date of AF diagnosis
@@ -86,13 +86,45 @@ python table2_stratified.py
 **Expected Output**:
 - File: `table2_stratified.md`: Markdown table with patient characteristics stratified by risk group, with p-values for between-group comparisons
 
-### 5. `reweighting.py`
+### 5. Reweighting Analysis Scripts
 
-**Purpose**: Performs a reweighting analysis to adjust the UK cohort to match the distribution of covariates in the original CHADS-VASc development cohort.
+We provide two different implementations for performing transportability analysis through reweighting, targeting the key question: "How would the CHADS-VASc score perform if our cohort had the same covariate distribution as the original development cohort?"
+
+#### 5a. `density_ratio_reweighting.py` (Recommended)
+
+**Purpose**: Implements the density ratio approach for reweighting as directly specified in the original sketch.
+
+**Features**:
+- Direct implementation of the density ratio method using log-space calculations for numerical stability
+- Handles both continuous (normal distribution) and binary (Bernoulli) variables
+- Calculates effective sample size
+- Produces weighted stroke rates by CHADS-VASc score
+- Evaluates AUC before and after weighting
+
+**Usage**:
+```
+python density_ratio_reweighting.py
+```
+
+**Expected Output**:
+- Console: UK parameters, weight statistics, effective sample size (~28% of original), and AUC values
+- Files:
+  - `density_ratio_weight_distribution.png`: Histogram of weights
+  - `density_ratio_weighted_rates.png`: Plot comparing weighted rates to original rates
+  - `density_ratio_results.md`: Markdown summary of results
+
+**Key Results**:
+- Effective sample size: ~28% of original sample
+- Weights range: 0.02-50.3 (normalized)
+- The weighted AUC shows different discrimination compared to the original
+
+#### 5b. `reweighting.py` (Alternative)
+
+**Purpose**: Performs a reweighting analysis using an optimization-based approach.
 
 **Features**:
 - Maps variables between datasets
-- Computes density ratio weights
+- Computes weights using likelihood optimization
 - Trims extreme weights
 - Calculates effective sample size
 - Bootstraps confidence intervals (uses 15 iterations for faster computation)
@@ -106,9 +138,8 @@ python reweighting.py
 - Console: Detailed statistics about parameters, weights, and performance
 - Files:
   - `weight_distribution.png`: Histogram of original and trimmed weights
-  - `weighted_vs_original_stroke_rates.png`: Plot comparing weighted rates to original rates
+  - `weighted_vs_original_rates.png`: Plot comparing weighted rates to original rates
   - `weighted_chadsvasc_results.md`: Table of weighted results
-  - `weighted_chadsvasc_results.csv`: CSV version of results
 
 ## Execution Order
 
@@ -118,10 +149,11 @@ For a complete analysis, run the scripts in this order:
 2. `visualize_end_fu.py` - Understand follow-up patterns
 3. `table2.py` - Generate descriptive statistics
 4. `table2_stratified.py` - Compare characteristics across risk groups
-5. `reweighting.py` - Perform transportability analysis
+5. `density_ratio_reweighting.py` - Perform transportability analysis using the density ratio approach
 
 ## Notes
 
 - All scripts use the patient filtering logic in `eda.py` for consistency
-- Output files are generated in the current working directory
-- The reweighting analysis may take several minutes to complete, particularly the bootstrap calculations
+- Output files are generated in the `results` directory
+- Both reweighting approaches address the transportation problem but use different mathematical formulations
+- The density ratio method follows a more direct implementation of the original sketch and provides better numerical stability

@@ -319,8 +319,11 @@ def compute_continuous_stats(df, var):
         return "No data"
 
 def get_df_local():
-    """Local implementation of get_df to use correct file path"""
-    df = pd.read_csv("data/random_nuchad.csv").rename(columns={"patid": "patient_id"}).set_index("patient_id")
+    """
+    Load the dataset, with columns properly formatted.
+    """
+    # load data
+    df = pd.read_csv("../data/random_nuchad.csv").rename(columns={"patid": "patient_id"}).set_index("patient_id")
     df = df.drop(columns=["Unnamed: 0"])
 
     # convert time1 and time2 to datetime objects
