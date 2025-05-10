@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from eda import get_df, filter_eligible_patients
+from nuchad.analysis.eda import get_df, filter_eligible_patients
+from nuchad.utils import get_results_dir
 
 def create_table1(df):
     """
@@ -155,7 +156,7 @@ def calculate_chadsvasc_distribution(df):
     """
     # Calculate CHADS-VASc scores if not already present
     if 'CHADS-Vasc' not in df.columns:
-        from eda import calculate_chadsvasc
+        from nuchad.analysis.eda import calculate_chadsvasc
         df['CHADS-Vasc'] = df.apply(calculate_chadsvasc, axis=1)
     
     # Get distribution
@@ -188,12 +189,13 @@ if __name__ == "__main__":
     table1 = create_table1(eligible_df)
     
     # Save as markdown file
-    with open('table1.md', 'w') as f:
+    results_dir = get_results_dir()
+    with open(results_dir / 'table1.md', 'w') as f:
         f.write("# Table 1: Baseline Characteristics\n\n")
         f.write(table1.to_markdown(index=False))
     
     # Print success message
-    print("Table 1 has been generated and saved as 'table1.md'")
+    print(f"Table 1 has been generated and saved as '{results_dir / 'table1.md'}'")
     
     # Calculate and display CHADS-VASc distribution
     print("\nCHADS-VASc Score Distribution:")
@@ -201,6 +203,6 @@ if __name__ == "__main__":
     print(chadsvasc_dist[['Score', 'Formatted']].to_markdown(index=False))
     
     # Save CHADS-VASc distribution to markdown
-    with open('chadsvasc_distribution.md', 'w') as f:
+    with open(results_dir / 'chadsvasc_distribution.md', 'w') as f:
         f.write("# CHADS-VASc Score Distribution\n\n")
         f.write(chadsvasc_dist[['Score', 'Formatted']].to_markdown(index=False)) 

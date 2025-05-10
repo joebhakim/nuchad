@@ -1,7 +1,10 @@
 import pandas as pd
 import numpy as np
+import os
 from scipy import stats
-from eda import get_df, filter_eligible_patients, calculate_chadsvasc
+from scipy.stats import f_oneway, chi2_contingency
+from nuchad.analysis.eda import get_df, filter_eligible_patients, calculate_chadsvasc
+from nuchad.utils import get_results_dir
 
 def stratify_by_chadsvasc(df):
     """
@@ -314,6 +317,35 @@ def compute_continuous_stats(df, var):
     else:
         return "No data"
 
+def generate_stratified_table1(df=None):
+    """
+    Generate a stratified Table 1 and save it to the results directory.
+    
+    Args:
+        df: Optional pre-loaded DataFrame. If None, will load and prepare the data.
+    
+    Returns:
+        DataFrame with the stratified table
+    """
+    # Load data if not provided
+    if df is None:
+        df = get_df()
+        df = filter_eligible_patients(df)
+    
+    # Generate stratified Table 1
+    stratified_table1 = create_stratified_table1(df)
+    
+    # Save as markdown file
+    results_dir = get_results_dir()
+    with open(results_dir / 'table1_stratified.md', 'w') as f:
+        f.write("# Table 1: Baseline Characteristics Stratified by CHADS-VASc Risk Groups\n\n")
+        f.write(stratified_table1.to_markdown(index=False))
+    
+    # Print success message
+    print(f"Stratified Table 1 has been generated and saved as '{results_dir / 'table1_stratified.md'}'")
+    
+    return stratified_table1
+
 if __name__ == "__main__":
     # Load data
     df = get_df()
@@ -321,13 +353,5 @@ if __name__ == "__main__":
     # Filter eligible patients
     eligible_df = filter_eligible_patients(df)
     
-    # Generate stratified Table 1
-    table1 = create_stratified_table1(eligible_df)
-    
-    # Save as markdown file
-    with open('table1_stratified.md', 'w') as f:
-        f.write("# Table 1: Baseline Characteristics Stratified by CHA₂DS₂-VASc Risk Groups\n\n")
-        f.write(table1.to_markdown(index=False))
-    
-    # Print success message
-    print("Stratified Table 1 has been generated and saved as 'table1_stratified.md'") 
+    # Generate and save stratified Table 1
+    generate_stratified_table1(eligible_df) 

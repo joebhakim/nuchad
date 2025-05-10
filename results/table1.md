@@ -9,7 +9,8 @@
 | Male                               | 45691 (52.4%)  |
 | Ethnicity                          |                |
 | Bangladesi                         | 29 (0.0%)      |
-| Bl_Afric                           | 102 (0.1%)     |
+| Bl_Afric                                         | 413 (0.5%)     |
+| Mixed                 | 102 (0.1%)     |
 | Bl_Carib                           | 212 (0.2%)     |
 | Bl_Other                           | 53 (0.1%)      |
 | Chinese                            | 80 (0.1%)      |

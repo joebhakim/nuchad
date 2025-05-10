@@ -3,24 +3,21 @@ import pandas as pd
 from scipy.stats import norm
 import matplotlib.pyplot as plt
 import os
+from pathlib import Path
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
 
-# Adjust path for both running from root or src directory
-if os.path.basename(os.getcwd()) == 'src':
-    # We're running from src directory
-    DATA_DIR = '../data'
-    RESULTS_DIR = '../results'
-else:
-    # We're running from root directory
-    DATA_DIR = 'data'
-    RESULTS_DIR = 'results'
+from nuchad.utils import get_data_path, get_results_dir
+from nuchad.analysis.eda import get_df, filter_eligible_patients, calculate_chadsvasc
 
 # Create results directory if it doesn't exist
-os.makedirs(RESULTS_DIR, exist_ok=True)
+results_dir = get_results_dir()
+# Don't need to explicitly create it as get_results_dir() already does this
 
 def get_df(data_path=None):
     """Load and prepare the dataset"""
     if data_path is None:
-        data_path = os.path.join(DATA_DIR, 'random_nuchad.csv')
+        data_path = str(get_data_path('random_nuchad.csv'))
     
     print(f"Loading data from: {data_path}")
     df = pd.read_csv(data_path)
@@ -203,38 +200,39 @@ def density_ratio_weighting(df):
                 else:
                     log_w += np.log(1-p_o) - np.log(1-p_u)
             
-            # Convert back from log space with clipping to avoid overflow
-            w = np.exp(np.clip(log_w, -10, 10))
+            # Convert from log space
+            w = np.exp(log_w)
+            
+            # Cap weights to avoid extreme values
+            MAX_WEIGHT = 50.0  # Cap weights at 50
+            if w > MAX_WEIGHT:
+                w = MAX_WEIGHT
+            
+            return w
             
         except Exception as e:
             print(f"Error computing weight: {e}")
-            w = 1.0  # Default to 1.0 on error
-            
-        return w
+            return 1.0  # Default weight on error
     
-    # Apply the weighting function
-    try:
-        df_weighted['weight'] = df_weighted.apply(compute_weight, axis=1)
-        
-        # Handle NaN or inf weights
-        df_weighted['weight'] = df_weighted['weight'].replace([np.inf, -np.inf], np.nan)
-        df_weighted['weight'] = df_weighted['weight'].fillna(1.0)
-        
-        # Normalize weights to sum to N (total sample size)
-        total_weight = df_weighted['weight'].sum()
-        df_weighted['weight'] = df_weighted['weight'] * len(df_weighted) / total_weight
-        
-        # Print weight statistics
-        print("\nWeight statistics:")
-        print(df_weighted['weight'].describe())
-        
-        # Calculate effective sample size
-        ess = df_weighted['weight'].sum()**2 / (df_weighted['weight']**2).sum()
-        print(f"Effective sample size: {ess:.1f} ({ess/len(df_weighted)*100:.1f}% of original)")
-        
-    except Exception as e:
-        print(f"Error in weighting: {e}")
-        df_weighted['weight'] = 1.0
+    # Calculate weights
+    df_weighted['weight'] = df_weighted.apply(compute_weight, axis=1)
+    
+    # Normalize weights to sum to n
+    n = len(df_weighted)
+    sum_w = df_weighted['weight'].sum()
+    df_weighted['weight'] = df_weighted['weight'] * (n / sum_w)
+    
+    # Print weight statistics
+    print("\nWeight statistics:")
+    print(df_weighted['weight'].describe())
+    
+    # Calculate effective sample size
+    ess = (df_weighted['weight'].sum() ** 2) / (df_weighted['weight'] ** 2).sum()
+    print(f"Effective sample size: {ess:.1f} ({ess/n*100:.1f}% of original)")
+    
+    # Make sure Follow_Up_Years is calculated if not already present
+    if 'Follow_Up_Years' not in df_weighted.columns and 'time1' in df_weighted.columns and 'end_fu' in df_weighted.columns:
+        df_weighted['Follow_Up_Years'] = (df_weighted['end_fu'] - df_weighted['time1']).dt.days / 365.25
     
     return df_weighted
 
@@ -412,71 +410,121 @@ def plot_weight_distribution(df_weighted, save_path):
     Plot the distribution of weights
     
     Args:
-        df_weighted: DataFrame with weights
+        df_weighted: DataFrame with weight column
         save_path: Path to save the plot
     """
     plt.figure(figsize=(10, 6))
-    
-    weights = df_weighted['weight'].values
-    
-    # Plot histogram
-    plt.hist(weights, bins=50, alpha=0.7)
-    
-    # Add vertical line for mean
-    plt.axvline(weights.mean(), color='red', linestyle='--', 
-                label=f'Mean: {weights.mean():.2f}')
-    
-    # Add labels and title
-    plt.xlabel('Weight Value')
-    plt.ylabel('Frequency')
+    plt.hist(df_weighted['weight'], bins=50, edgecolor='black')
+    plt.xlabel('Weight')
+    plt.ylabel('Count')
     plt.title('Distribution of Density Ratio Weights')
-    plt.legend()
     plt.grid(True, alpha=0.3)
+    plt.axvline(x=1, color='red', linestyle='--', label='Weight=1')
+    plt.legend()
     
     # Save the plot
     plt.tight_layout()
-    plt.savefig(save_path)
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"Weight distribution plot saved to {save_path}")
     plt.close()
 
-if __name__ == "__main__":
-    # Load data
-    print("Loading and preparing data...")
+def perform_reweighting_analysis(df=None):
+    """
+    Perform the full density ratio reweighting analysis.
+    
+    Args:
+        df: Optional pre-loaded DataFrame. If None, will load and prepare the data.
+        
+    Returns:
+        DataFrame with the weighted results
+    """
+    try:
+        # If df is not provided, load and prepare it
+        if df is None:
+            df = get_df()
+            df = filter_eligible_patients(df)
+        
+        # Make sure we have the Follow_Up_Years column
+        if 'Follow_Up_Years' not in df.columns and 'time1' in df.columns and 'end_fu' in df.columns:
+            df['Follow_Up_Years'] = (df['end_fu'] - df['time1']).dt.days / 365.25
+        
+        # Calculate CHADS-VASc score if not already present
+        if 'CHADS-Vasc' not in df.columns:
+            df['CHADS-Vasc'] = df.apply(calculate_chadsvasc, axis=1)
+        
+        # Prepare data for weighting
+        df_prep = prepare_data_for_weighting(df)
+        
+        # Make sure CHADS-Vasc score is preserved in prepared data
+        if 'CHADS-Vasc' not in df_prep.columns and 'CHADS-Vasc' in df.columns:
+            df_prep['CHADS-Vasc'] = df['CHADS-Vasc']
+        
+        # Compute weights
+        df_weighted = density_ratio_weighting(df_prep)
+        
+        # Make sure we have the Follow_Up_Years column in the weighted dataframe too
+        if 'Follow_Up_Years' not in df_weighted.columns and 'time1' in df_weighted.columns and 'end_fu' in df_weighted.columns:
+            df_weighted['Follow_Up_Years'] = (df_weighted['end_fu'] - df_weighted['time1']).dt.days / 365.25
+        elif 'Follow_Up_Years' in df.columns and 'Follow_Up_Years' not in df_weighted.columns:
+            df_weighted['Follow_Up_Years'] = df['Follow_Up_Years']
+        
+        # Make sure CHADS-Vasc score is preserved in weighted data
+        if 'CHADS-Vasc' not in df_weighted.columns and 'CHADS-Vasc' in df.columns:
+            df_weighted['CHADS-Vasc'] = df['CHADS-Vasc']
+        
+        # Evaluate CHADS-VASc with and without weights
+        results = evaluate_chadsvasc(df_weighted)
+        
+        # Save results
+        save_path = results_dir / 'density_ratio_weighted_rates.png'
+        plot_results(results, save_path)
+        
+        # Save weight distribution plot
+        weight_plot_path = results_dir / 'density_ratio_weight_distribution.png'
+        plot_weight_distribution(df_weighted, weight_plot_path)
+        
+        # Save results to markdown
+        results_markdown_path = results_dir / 'density_ratio_results.md'
+        save_results_to_markdown(results, df_weighted, results_markdown_path)
+        
+        print(f"Density ratio weighting analysis completed. Results saved to {results_dir}")
+        
+        return df_weighted
+    
+    except Exception as e:
+        print(f"Error in density ratio reweighting analysis: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+def main():
+    """Run the density ratio weighting analysis"""
     df = get_df()
-    
-    # Display dataset statistics
-    print(f"Total patients in dataset: {len(df)}")
-    print(f"Patients with AF: {sum(df['af'])}")
-    print(f"Patients with stroke: {sum(df['stroke_1Y'])}")
-    
-    # Filter eligible patients
-    eligible_df = filter_eligible_patients(df)
-    print(f"Eligible patients after filtering: {len(eligible_df)}")
+    df = filter_eligible_patients(df)
     
     # Prepare data for weighting
-    print("\nPreparing data for density ratio weighting...")
-    prepared_df = prepare_data_for_weighting(eligible_df)
+    df_prep = prepare_data_for_weighting(df)
     
     # Apply density ratio weighting
-    print("\nApplying density ratio weighting...")
-    df_weighted = density_ratio_weighting(prepared_df)
-    
-    # Plot weight distribution
-    weight_dist_path = os.path.join(RESULTS_DIR, 'density_ratio_weight_distribution.png')
-    plot_weight_distribution(df_weighted, weight_dist_path)
-    print(f"Weight distribution plot saved to '{weight_dist_path}'")
+    df_weighted = density_ratio_weighting(df_prep)
     
     # Evaluate CHADS-VASc performance
-    print("\nEvaluating CHADS-VASc performance...")
     results = evaluate_chadsvasc(df_weighted)
     
+    # Plot weight distribution
+    weight_dist_path = results_dir / 'density_ratio_weight_distribution.png'
+    plot_weight_distribution(df_weighted, str(weight_dist_path))
+    print(f"Weight distribution plot saved to '{weight_dist_path}'")
+    
     # Plot results
-    plot_path = os.path.join(RESULTS_DIR, 'density_ratio_weighted_rates.png')
-    plot_results(results, plot_path)
+    plot_path = results_dir / 'density_ratio_weighted_rates.png'
+    plot_results(results, str(plot_path))
     print(f"Results plot saved to '{plot_path}'")
     
     # Save results to markdown
-    results_path = os.path.join(RESULTS_DIR, 'density_ratio_results.md')
-    save_results_to_markdown(results, df_weighted, results_path)
+    results_path = results_dir / 'density_ratio_results.md'
+    save_results_to_markdown(results, df_weighted, str(results_path))
     print(f"Results saved to '{results_path}'")
-    
-    print("\nDensity ratio reweighting analysis complete!") 
+
+if __name__ == "__main__":
+    main() 

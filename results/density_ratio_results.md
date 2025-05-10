@@ -3,9 +3,9 @@
 ## Weight Statistics
 
 - Number of patients: 87220
-- Weight range: 0.02 - 50.31
+- Weight range: 0.02 - 45.04
 - Weight mean: 1.00
-- Effective sample size: 24516.6 (28.1% of original)
+- Effective sample size: 24575.9 (28.2% of original)
 
 ## Performance Metrics
 
@@ -18,7 +18,7 @@
 |------------|-----------------|---------------|---------------|
 | 0 | 0.2 | 0.12 | 0.10 |
 | 1 | 0.6 | 0.18 | 0.15 |
-| 2 | 2.2 | 0.40 | 1.38 |
+| 2 | 2.2 | 0.40 | 1.37 |
 | 3 | 3.2 | 0.68 | 2.76 |
 | 4 | 4.8 | 1.13 | 4.74 |
 | 5 | 7.2 | 2.86 | 8.81 |

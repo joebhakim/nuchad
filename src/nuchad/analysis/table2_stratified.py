@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 import os
 from scipy import stats
-from eda import get_df, filter_eligible_patients, calculate_chadsvasc, calculate_stroke_rate, confidence_interval
+from nuchad.analysis.eda import get_df, calculate_chadsvasc, calculate_stroke_rate, confidence_interval
+from nuchad.data_processing.eligibility_filters import filter_eligible_patients
+from nuchad.utils import get_results_dir
 
 # Create directories if they don't exist
 os.makedirs('../results', exist_ok=True)
@@ -336,85 +338,122 @@ def get_df_local():
 
     return df
 
-def generate_stratified_table():
+def generate_stratified_table2(df=None):
     """
-    Generate a table of stroke rates by CHADS-VASc score, stratified by sex.
+    Generate stratified cohort tables showing characteristics and stroke rates 
+    by CHADS-VASc score and save to the results directory.
+    
+    Args:
+        df: Optional pre-loaded DataFrame. If None, will load and prepare the data.
+        
+    Returns:
+        Dictionary with both stratified tables
     """
-    # Create results directory if it doesn't exist
-    os.makedirs('results', exist_ok=True)
+    # Load data if not provided
+    if df is None:
+        df = get_df()
+        # Use the filtering function from data_processing.eligibility_filters
+        df, _ = filter_eligible_patients(df)
     
-    # Get the dataframe and filter eligible patients
-    df = get_df_local()
-    df = filter_eligible_patients(df)
+    # Generate detailed stratified Table 2 with characteristics
+    detailed_table = create_stratified_table2(df)
     
-    # Calculate CHADS-VASc score
-    df["CHADS-Vasc"] = df.apply(calculate_chadsvasc, axis=1)
+    # Save detailed table as markdown file in results directory
+    results_dir = get_results_dir()
+    with open(results_dir / 'table2_stratified_characteristics.md', 'w') as f:
+        f.write("# Table 2: Characteristics of Eligible Patients Stratified by CHADS-VASc Risk\n\n")
+        f.write(detailed_table.to_markdown(index=False))
     
-    # Calculate follow-up time in years
-    df["Follow_Up_Years"] = (
-        (df["end_fu"] - df["time1"]) / np.timedelta64(1, "D") / 365.25
-    )
+    # Generate stratified rates table by anticoagulation status
+    rates_table = generate_stratified_rates_table(df)
     
-    # Process separately for males and females
+    # Save rates table as markdown file
+    with open(results_dir / 'table2_stratified.md', 'w') as f:
+        f.write("# Table 2: Stroke Rates Stratified by CHADS-VASc Score and Anticoagulation Status\n\n")
+        f.write(rates_table.to_markdown(index=False))
+    
+    # Print success message
+    print(f"Stratified Table 2 has been generated and saved as '{results_dir / 'table2_stratified.md'}'")
+    
+    return {
+        'characteristics': detailed_table,
+        'rates': rates_table
+    }
+
+def generate_stratified_rates_table(df):
+    """
+    Generate a stratified cohort table showing stroke rates by CHADS-VASc score and anticoagulation status.
+    
+    Args:
+        df: DataFrame with patient data
+        
+    Returns:
+        DataFrame with stratified rates
+    """
+    # Calculate CHADS-VASc score if not already present
+    if 'chadsvasc' not in df.columns and 'CHADS-Vasc' not in df.columns:
+        df['chadsvasc'] = df.apply(calculate_chadsvasc, axis=1)
+    
+    # Use the appropriate column name
+    score_col = 'chadsvasc' if 'chadsvasc' in df.columns else 'CHADS-Vasc'
+    
+    # Create a binary anticoagulation variable if not already present
+    if 'anticoag_binary' not in df.columns:
+        df['anticoag_binary'] = df['Anticoagulant'].apply(
+            lambda x: 0 if x == 'No anticoagulant' else 1
+        )
+    
+    # Group by CHADS-VASc score and anticoagulation status
+    grouped = df.groupby([score_col, 'anticoag_binary'])
+    
+    # Create results dataframe
     results = []
     
-    for gender_value, gender_label in [(1, "Male"), (2, "Female")]:
-        gender_df = df[df["gender"] == gender_value]
+    for (score, anticoag), group in grouped:
+        num_patients = len(group)
         
-        grouped = gender_df.groupby("CHADS-Vasc")
+        # Calculate patient years (difference between time1 and end_fu in years)
+        if 'follow_up_years' in group.columns:
+            total_patient_years = group['follow_up_years'].sum()
+        else:
+            group_copy = group.copy()
+            group_copy['follow_up_years'] = (group_copy['end_fu'] - group_copy['time1']).dt.days / 365.25
+            total_patient_years = group_copy['follow_up_years'].sum()
         
-        for score, group in grouped:
-            total_patients = len(group)
-            total_years = group["Follow_Up_Years"].sum()
-            observed_rate = calculate_stroke_rate(
-                group, total_patients, total_years, event_col="stroke_1Y"
-            )
-            ci = confidence_interval(observed_rate, total_years)
-            
-            results.append({
-                "Gender": gender_label,
-                "CHADS-Vasc": score,
-                "Number of Patients": total_patients,
-                "Total Patient Years": total_years,
-                "Observed Stroke Rate": observed_rate,
-                "95% CI Lower": ci[0],
-                "95% CI Upper": ci[1],
-            })
+        # Count strokes
+        strokes = group['stroke_1Y'].sum()
+        
+        # Calculate stroke rate per 100 patient-years
+        stroke_rate = (strokes / total_patient_years) * 100 if total_patient_years > 0 else 0
+        
+        # Calculate 95% confidence interval
+        if strokes > 0 and total_patient_years > 0:
+            ci_lower = (stroke_rate * np.exp(-1.96 / np.sqrt(strokes)))
+            ci_upper = (stroke_rate * np.exp(1.96 / np.sqrt(strokes)))
+        else:
+            ci_lower = 0
+            ci_upper = 0
+        
+        results.append({
+            'CHADS-VASc Score': score,
+            'Anticoagulation': 'Yes' if anticoag == 1 else 'No',
+            'Number of Patients': num_patients,
+            'Total Patient-Years': round(total_patient_years, 1),
+            'Number of Strokes': int(strokes),
+            'Stroke Rate (per 100 patient-years)': round(stroke_rate, 2),
+            '95% CI Lower': round(ci_lower, 2),
+            '95% CI Upper': round(ci_upper, 2)
+        })
     
-    # Convert to DataFrame
+    # Convert to DataFrame and sort by CHADS-VASc score and anticoagulation status
     results_df = pd.DataFrame(results)
-    
-    # Sort by gender and score
-    results_df = results_df.sort_values(by=['Gender', 'CHADS-Vasc'])
-    
-    # Save to markdown file
-    markdown_table = results_df.to_markdown(index=False)
-    with open('results/table2_stratified.md', 'w') as f:
-        f.write(markdown_table)
-    
-    print(f"Stratified table saved to results/table2_stratified.md")
-    print("\nStratified Table by Sex:\n")
-    print(markdown_table)
+    results_df = results_df.sort_values(['CHADS-VASc Score', 'Anticoagulation'])
     
     return results_df
 
 if __name__ == "__main__":
-    # Load data
-    df = get_df()
+    # Generate and save stratified tables
+    results = generate_stratified_table2()
     
-    # Filter eligible patients
-    eligible_df = filter_eligible_patients(df)
-    
-    # Generate stratified Table 2
-    stratified_table2 = create_stratified_table2(eligible_df)
-    
-    # Save as markdown file in results directory
-    with open('../results/table2_stratified.md', 'w') as f:
-        f.write("# Table 2: Characteristics of Eligible Patients Stratified by CHADS-VASc Risk\n\n")
-        f.write(stratified_table2.to_markdown(index=False))
-    
-    # Print success message
-    print("Stratified Table 2 has been generated and saved as '../results/table2_stratified.md'")
-
-    results_table = generate_stratified_table()
-    print(results_table.to_markdown(index=False)) 
+    # Print the rates table
+    print(results['rates'].to_markdown(index=False)) 

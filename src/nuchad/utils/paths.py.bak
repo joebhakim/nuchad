@@ -1,0 +1,26 @@
+"""Path utilities for the nuchad package."""
+
+from pathlib import Path
+import os
+
+def get_project_root():
+    """
+    Get the path to the project root directory.
+    
+    Returns:
+        Path object for the project root directory
+    """
+    return Path(__file__).parent.parent.parent.parent
+
+def ensure_dir(directory):
+    """
+    Ensure that a directory exists.
+    
+    Args:
+        directory: Path to the directory
+        
+    Returns:
+        Path object for the directory
+    """
+    os.makedirs(directory, exist_ok=True)
+    return directory 

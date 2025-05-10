@@ -1,27 +1,35 @@
-import os
 import pandas as pd
 import numpy as np
-from eda import get_df, calculate_chadsvasc, filter_eligible_patients
+from nuchad.utils import get_results_dir
+from nuchad.analysis.eda import get_df, filter_eligible_patients, calculate_chadsvasc, calculate_stroke_rate, confidence_interval
 
-def generate_cohort_table():
+def generate_cohort_table(df=None):
     """
     Generate a cohort table showing stroke rates by CHADS-VASc score.
     Save results to a markdown file.
+    
+    Args:
+        df: Optional pre-loaded DataFrame. If None, will load the data.
+        
+    Returns:
+        DataFrame with cohort table results
     """
-    # Ensure results directory exists
-    os.makedirs("../results", exist_ok=True)
+    # Get the dataframe using the existing function from eda if not provided
+    if df is None:
+        df = get_df()
+        
+        # Filter eligible patients
+        df = filter_eligible_patients(df)
     
-    # Get the dataframe using the existing function from eda
-    df = get_df()
+    # Calculate CHADS-VASc score for each patient if not already done
+    if 'chadsvasc' not in df.columns and 'CHADS-Vasc' not in df.columns:
+        df['chadsvasc'] = df.apply(calculate_chadsvasc, axis=1)
     
-    # Filter eligible patients
-    eligible_patients_df = filter_eligible_patients(df)
-    
-    # Calculate CHADS-VASc score for each patient
-    eligible_patients_df['chadsvasc'] = eligible_patients_df.apply(calculate_chadsvasc, axis=1)
+    # Use the appropriate column name
+    score_col = 'chadsvasc' if 'chadsvasc' in df.columns else 'CHADS-Vasc'
     
     # Group by CHADS-VASc score
-    grouped = eligible_patients_df.groupby('chadsvasc')
+    grouped = df.groupby(score_col)
     
     # Create results dataframe
     results = []
@@ -52,7 +60,7 @@ def generate_cohort_table():
             'Number of Patients': num_patients,
             'Total Patient-Years': round(total_patient_years, 1),
             'Number of Strokes': int(strokes),
-            'Stroke Rate (per 100 patient-years)': round(stroke_rate, 2),
+            'Stroke Rate (per 100 person-years)': round(stroke_rate, 2),
             '95% CI Lower': round(ci_lower, 2),
             '95% CI Upper': round(ci_upper, 2)
         })
@@ -62,7 +70,14 @@ def generate_cohort_table():
     results_df = results_df.sort_values('CHADS-VASc Score')
     
     # Save to markdown
-    results_df.to_markdown('../results/table2.md', index=False)
+    results_dir = get_results_dir()
+    results_path = results_dir / 'table2.md'
+    
+    with open(results_path, 'w') as f:
+        f.write("# Table 2: Stroke Rates by CHADS-VASc Score\n\n")
+        f.write(results_df.to_markdown(index=False))
+    
+    print(f"Table 2 has been generated and saved as '{results_path}'")
     
     return results_df
 

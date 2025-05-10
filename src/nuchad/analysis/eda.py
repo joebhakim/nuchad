@@ -2,44 +2,27 @@
 from matplotlib import pyplot as plt
 import pandas as pd
 import numpy as np
+from scipy.stats import poisson
 import os
 
-# import seaborn as sns
-# import matplotlib.pyplot as plt
-# from scipy import stats
-
-from scipy.stats import poisson
-
-# Create directories if they don't exist
-os.makedirs('../data', exist_ok=True)
-os.makedirs('../results', exist_ok=True)
-
-# load data
-# df = pd.read_csv("./data/changauto4225.csv")
-
+from nuchad.utils import get_data_file, get_results_dir
+from nuchad.data_processing.eligibility_filters import filter_eligible_patients as filter_eligible_patients_util
 
 def get_df():
-    # Updated path to use data directory
-    df = pd.read_csv("../data/random_nuchad.csv").rename(columns={"patid": "patient_id"}).set_index("patient_id")
-    df = df.drop(columns=["Unnamed: 0"])
+    """Load and prepare the dataset."""
+    # Load data using the data access module
+    with get_data_file('random_nuchad.csv') as data_path:
+        df = pd.read_csv(data_path).rename(columns={"patid": "patient_id"}).set_index("patient_id")
+        df = df.drop(columns=["Unnamed: 0"])
 
-    # load data
-    # df = pd.read_csv("./data/changauto4225.csv")
+        # Convert date columns to datetime objects
+        df["time1"] = pd.to_datetime(df["time1"], format="%Y-%m-%d", errors="raise")
+        df["time2"] = pd.to_datetime(df["time2"], format="%Y-%m-%d", errors="raise")
+        df["earliest_af_date"] = pd.to_datetime(df["earliest_af_date"], format="%d%b%Y", errors="raise")
+        df["earliest_stroke_date"] = pd.to_datetime(df["earliest_stroke_date"], format="%d%b%Y", errors="raise")
+        df["end_fu"] = pd.to_datetime(df["end_fu"], format="%d%b%Y", errors="raise")
 
-    # --- Convert time1 and time2 to datetime objects ---
-
-    # convert time1 and time2 to datetime objects
-
-    # Change to format; 01-Jan-2020
-    df["time1"] = pd.to_datetime(df["time1"], format="%Y-%m-%d", errors="raise")
-    df["time2"] = pd.to_datetime(df["time2"], format="%Y-%m-%d", errors="raise")
-
-    df["earliest_af_date"] = pd.to_datetime(df["earliest_af_date"], format="%d%b%Y", errors="raise")
-    df["earliest_stroke_date"] = pd.to_datetime(df["earliest_stroke_date"], format="%d%b%Y", errors="raise")
-    df["end_fu"] = pd.to_datetime(df["end_fu"], format="%d%b%Y", errors="raise")
-
-
-    return df
+        return df
 
 
 ## Validating chadsvasc
@@ -205,54 +188,35 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
     return results_df
 
 
-def filter_eligible_patients(df):
+def filter_patients_for_analysis(
+    df: pd.DataFrame,
+    start_time_col: str = "time1",
+    end_time_col: str = "end_fu"
+) -> pd.DataFrame:
     """
-    Filters patients who are eligible for the study based on the following criteria:
-    - AF diagnosis must have been no more than 1 year before the start of the observation window
-    - Stroke diagnosis must have been no more than 1 year before the start of the observation window
-    - Patient must have a follow-up period of at least 1 year
-    """
-    # Filter patients who have an AF diagnosis before time1, doesnt matter how LONG before time1
-    af_diagnosis_mask = (df["earliest_af_date"] <= df["time1"])
-
-    # Filter patients who have a stroke diagnosis between time1 (inclusive) and one year after time1
-    stroke_diagnosis_mask = (df["earliest_stroke_date"] >= df["time1"]) & (
-        df["earliest_stroke_date"] <= df["time1"] + pd.Timedelta(days=365)
-    )
-
-    # Filter patients who have a follow-up period of at least 1 year, observed with time2
-    # TODO: find out why time2 is not the same as end_fu, TODO RE: ITS IN THE DOC
-    # TODO: these should be treated as censored, not omitted
-    follow_up_mask = df["end_fu"] >= df["time1"] + pd.Timedelta(days=365)
-
-    # Do diagostics on these masks: how many did we start with, how many do each prune? How many are pruned in this order:
-    # All patients
-    # All patients with AF
-    # All patients with stroke
-    # All patients with follow-up
-    # All patients with AF and stroke
-    # All patients with AF and stroke and follow-up
-
-    print(f"Total patients: {len(df)}")
-    print(f"Patients with AF (earliest_af_date <= time1): {len(df[af_diagnosis_mask])}")
-    print(f"Patients with stroke (earliest_stroke_date >= time1 and <= time1 + 365): {len(df[stroke_diagnosis_mask])}")
-    print(f"Patients with follow-up (end_fu >= time1 + 365): {len(df[follow_up_mask])}")
-    print(f"Patients with AF and stroke: {len(df[af_diagnosis_mask & stroke_diagnosis_mask])}")
-    print(f"Patients with AF and stroke and follow-up: {len(df[af_diagnosis_mask & stroke_diagnosis_mask & follow_up_mask])}")
-
-    # Check: percentiles of earliest_af_date - time1
-    # earliest_af_date_minus_time1 = df['earliest_af_date'] - df['time1']
-    # print(earliest_af_date_minus_time1.describe()) There are NONE, were good
-
+    Filter patients for analysis using standard criteria.
     
-    # Eligibility: with AF, with enough followup, NOT NECESSARILY WITH STROKE
-    #eligible_mask = af_diagnosis_mask & stroke_diagnosis_mask  & follow_up_mask
-    eligible_mask = af_diagnosis_mask & follow_up_mask
-
-    # Apply the mask to the DataFrame
-    eligible_patients_df = df[eligible_mask]
-
-    return eligible_patients_df
+    This is a wrapper around the filter_eligible_patients function in data_processing.eligibility_filters
+    
+    Args:
+        df: DataFrame with patient data
+        start_time_col: Column name for start of observation
+        end_time_col: Column name for end of observation
+        
+    Returns:
+        Filtered DataFrame with only eligible patients
+    """
+    # Call the utility function with default parameters
+    filtered_df, _ = filter_eligible_patients_util(
+        df,
+        require_af=True,
+        require_follow_up=True,
+        require_stroke=False,
+        af_before_time1=True,
+        min_follow_up_days=365,
+        stroke_window_days=365
+    )
+    return filtered_df
 
 
 def more_checking(df):
@@ -345,7 +309,8 @@ def plot_already_results():
     plt.legend()
     plt.tight_layout()
     # Save to results directory
-    plt.savefig('../results/observed_vs_original_stroke_rates.png', dpi=300)
+    results_dir = get_results_dir()
+    plt.savefig(results_dir / 'observed_vs_original_stroke_rates.png', dpi=300)
     plt.show()
 
 
@@ -354,12 +319,13 @@ if __name__ == "__main__":
 
     #more_checking(df)
 
-    eligible_patients_df = filter_eligible_patients(df)
+    eligible_patients_df = filter_patients_for_analysis(df)
 
     results_df = validate_chadsvasc(eligible_patients_df, "time1", "end_fu", "stroke_1Y")
 
     # save results_df to markdown in results directory
-    results_df.to_markdown("../results/results_df.md", numalign="left", stralign="left")
+    results_dir = get_results_dir()
+    results_df.to_markdown(results_dir / "results_df.md", numalign="left", stralign="left")
 
     print(results_df.head().to_markdown(index=False, numalign="left", stralign="left"))
     

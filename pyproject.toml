@@ -1,17 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "nuchad"
 version = "0.1.0"
-description = "Add your description here"
+description = "CHADS-VASc Analysis Package for stroke risk prediction in AF patients"
 readme = "README.md"
+requires-python = ">=3.7"
+license = "MIT"
 authors = [
-    { name = "Joe Hakim", email = "joe@ketryx.com" }
+    { name = "Your Name", email = "your.email@example.com" }
 ]
-requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pandas",
+    "numpy",
+    "matplotlib",
+    "seaborn",
+    "scipy",
+    "scikit-learn",
+]
 
 [project.scripts]
 nuchad = "nuchad:main"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[tool.hatch.build.targets.wheel]
+packages = ["src/nuchad"]
+include = ["data/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
+python_files = ["test_*.py"]

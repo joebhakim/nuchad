@@ -1,4 +1,4 @@
-# Table 1: Baseline Characteristics Stratified by CHA₂DS₂-VASc Risk Groups
+# Table 2: Characteristics of Eligible Patients Stratified by CHADS-VASc Risk
 
 | Variable                           | Total          | Low Risk             | Moderate Risk        | High Risk           | P-value   |
 |                                    | (N=87220)      | (CHA₂DS₂-VASc 0-1)   | (CHA₂DS₂-VASc 2-3)   | (CHA₂DS₂-VASc ≥4)   |           |
