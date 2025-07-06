@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from nuchad.analysis.eda import get_df, filter_eligible_patients
+from nuchad.analysis.eda import get_df
+from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 from nuchad.utils import get_results_dir
 
 def create_table1(df):

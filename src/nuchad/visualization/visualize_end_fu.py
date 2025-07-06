@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 import os
 
 from nuchad.utils import get_results_dir
-from nuchad.analysis.eda import get_df, filter_eligible_patients
+from nuchad.analysis.eda import get_df
+from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 def plot_end_fu_distribution(df=None):
     """
@@ -21,7 +22,7 @@ def plot_end_fu_distribution(df=None):
     # Get the dataframe if not provided
     if df is None:
         df = get_df()
-        df = filter_eligible_patients(df)
+        df, _ = filter_eligible_patients(df)
 
     # Calculate follow-up time in years
     df['follow_up_years'] = (df['end_fu'] - df['time1']).dt.days / 365.25

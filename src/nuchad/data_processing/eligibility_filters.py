@@ -51,9 +51,11 @@ def filter_eligible_patients(
     if require_af:
         filter_description = f"AF diagnosis {'before or at time1' if af_before_time1 else 'any time'}"
         if af_before_time1:
-            mask = current_df["af_before_time1"] == True
+            # Compute AF before time1 on the fly
+            mask = current_df["earliest_af_date"] <= current_df["time1"]
         else:
-            mask = current_df["has_af"] == True
+            # Any AF diagnosis (assuming 'af' column indicates AF presence)
+            mask = current_df["af"] == 1
             
         filter_stats["filter_masks"]["af"] = mask
         filter_stats["filter_descriptions"]["af"] = filter_description
@@ -95,9 +97,9 @@ def filter_eligible_patients(
         # Calculate days between stroke and time1
         # Make sure to handle missing stroke dates
         stroke_to_time1_days = pd.Series(float('nan'), index=current_df.index)
-        mask_has_stroke = ~current_df["first_stroke_date"].isna()
+        mask_has_stroke = ~current_df["earliest_stroke_date"].isna()
         stroke_to_time1_days[mask_has_stroke] = (
-            current_df.loc[mask_has_stroke, "first_stroke_date"] - 
+            current_df.loc[mask_has_stroke, "earliest_stroke_date"] - 
             current_df.loc[mask_has_stroke, "time1"]
         ).dt.days
         

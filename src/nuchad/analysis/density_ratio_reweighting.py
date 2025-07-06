@@ -8,7 +8,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
 from nuchad.utils import get_data_path, get_results_dir
-from nuchad.analysis.eda import get_df, filter_eligible_patients, calculate_chadsvasc
+from nuchad.analysis.eda import get_df, calculate_chadsvasc
+from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 # Create results directory if it doesn't exist
 results_dir = get_results_dir()
@@ -68,7 +69,7 @@ def calculate_chadsvasc(row):
         score += int(row["gender"] != 1)  # 1 = male, 2 = female
     return score
 
-def filter_eligible_patients(df):
+def filter_eligible_patients_legacy(df):
     """
     Filters patients who are eligible for the study
     """
@@ -442,7 +443,7 @@ def perform_reweighting_analysis(df=None):
         # If df is not provided, load and prepare it
         if df is None:
             df = get_df()
-            df = filter_eligible_patients(df)
+            df, _ = filter_eligible_patients(df)
         
         # Make sure we have the Follow_Up_Years column
         if 'Follow_Up_Years' not in df.columns and 'time1' in df.columns and 'end_fu' in df.columns:
@@ -500,7 +501,7 @@ def perform_reweighting_analysis(df=None):
 def main():
     """Run the density ratio weighting analysis"""
     df = get_df()
-    df = filter_eligible_patients(df)
+    df, _ = filter_eligible_patients(df)
     
     # Prepare data for weighting
     df_prep = prepare_data_for_weighting(df)

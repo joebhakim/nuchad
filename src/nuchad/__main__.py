@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from nuchad.analysis import eda, table1, table2, table1_stratified, table2_stratified, density_ratio_reweighting
+from nuchad.analysis import eda, table1, table2, table1_stratified, table2_stratified, density_ratio_reweighting, model_comparison
 from nuchad.visualization import visualize_end_fu
 from nuchad.data_processing import eligibility_filters as data_utils
 from nuchad.utils import get_results_dir
@@ -17,7 +17,7 @@ def main():
     
     parser.add_argument(
         "--task",
-        choices=["eda", "table1", "table2", "table1_stratified", "table2_stratified", "visualize", "reweight", "filter"],
+        choices=["eda", "table1", "table2", "table1_stratified", "table2_stratified", "visualize", "reweight", "filter", "compare"],
         required=True,
         help="Analysis task to perform",
     )
@@ -156,6 +156,12 @@ def main():
         # Process from density_ratio_reweighting.py
         density_ratio_reweighting.perform_reweighting_analysis(eligible_df)
         print("Reweighting analysis has been completed")
+    
+    elif args.task == "compare":
+        # Process from model_comparison.py
+        results = model_comparison.perform_model_comparison(eligible_df)
+        auc_diff = results['auc_model'] - results['auc_score']
+        print(f"Model comparison completed. AUC difference: {auc_diff:+.3f}")
     
     return 0
 
