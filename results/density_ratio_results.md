@@ -1,5 +1,21 @@
 # CHADS-VASc Density Ratio Reweighting Results
 
+## Analysis Metadata
+
+```json
+{
+  "data_file_name": "random_nuchad.csv",
+  "data_file_creation_date": "2025 Apr 26 13:32",
+  "analysis_run_date": "2025 Jul 08 12:31",
+  "num_patients": 87220,
+  "analysis_type": "density_ratio_reweighting",
+  "effective_sample_size": 24575.944508957004,
+  "results_directory": "/home/joe/skunk_here/nuchad/results",
+  "original_auc": 0.7537893173796046,
+  "weighted_auc": 0.8383572124709349
+}
+```
+
 ## Weight Statistics
 
 - Number of patients: 87220

@@ -11,27 +11,42 @@ from nuchad.data_processing.eligibility_filters import (
 )
 
 
-def get_df():
+def get_df(data_file="random_nuchad.csv"):
     """Load and prepare the dataset."""
     # Load data using the data access module
-    with get_data_file("random_nuchad.csv") as data_path:
-        df = (
-            pd.read_csv(data_path)
-            .rename(columns={"patid": "patient_id"})
-            .set_index("patient_id")
-        )
-        df = df.drop(columns=["Unnamed: 0"])
+    with get_data_file(data_file) as data_path:
+        df = pd.read_csv(data_path)
+        
+        # Handle patid column if present
+        if 'patid' in df.columns:
+            df = df.rename(columns={"patid": "patient_id"}).set_index("patient_id")
+        
+        # Remove unnamed columns
+        if 'Unnamed: 0' in df.columns:
+            df = df.drop(columns=["Unnamed: 0"])
 
-        # Convert date columns to datetime objects
-        df["time1"] = pd.to_datetime(df["time1"], format="%Y-%m-%d", errors="raise")
-        df["time2"] = pd.to_datetime(df["time2"], format="%Y-%m-%d", errors="raise")
-        df["earliest_af_date"] = pd.to_datetime(
-            df["earliest_af_date"], format="%d%b%Y", errors="raise"
-        )
-        df["earliest_stroke_date"] = pd.to_datetime(
-            df["earliest_stroke_date"], format="%d%b%Y", errors="raise"
-        )
-        df["end_fu"] = pd.to_datetime(df["end_fu"], format="%d%b%Y", errors="raise")
+        # Convert date columns to datetime objects - handle both old and new formats
+        date_cols = ['time1', 'time2', 'earliest_af_date', 'earliest_stroke_date', 'earliest_tia_date', 
+                     'end_fu', 'first_OAC_date', 'first_antiplatelet_date']
+        
+        for col in date_cols:
+            if col in df.columns:
+                if col in ['time1', 'time2']:
+                    df[col] = pd.to_datetime(df[col], format="%Y-%m-%d", errors="coerce")
+                else:
+                    df[col] = pd.to_datetime(df[col], format="%d%b%Y", errors="coerce")
+
+        # Handle dataset compatibility: create time1 and time2 equivalents for new dataset
+        if 'time1' not in df.columns and 'earliest_af_date' in df.columns:
+            # Use AF diagnosis date as time1 equivalent
+            df['time1'] = df['earliest_af_date']
+            print("Created time1 from earliest_af_date")
+        
+        if 'time2' not in df.columns and 'end_fu' in df.columns:
+            # For time2, we'll use a window after time1 (e.g., 3 months)
+            if 'time1' in df.columns:
+                df['time2'] = df['time1'] + pd.Timedelta(days=90)  # 3 months after AF diagnosis
+                print("Created time2 as 3 months after time1")
 
         return df
 

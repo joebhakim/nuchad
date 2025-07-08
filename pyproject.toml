@@ -33,6 +33,7 @@ visualize_followup = "scripts.visualize_followup:main"
 density_reweighting = "scripts.density_reweighting:main"
 model_comparison = "scripts.model_comparison:main"
 filter_patients = "scripts.filter_patients:main"
+compare_datasets = "scripts.compare_datasets:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nuchad", "src/scripts"]
