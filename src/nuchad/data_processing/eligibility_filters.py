@@ -3,6 +3,7 @@
 import pandas as pd
 import argparse
 import sys
+import json
 from pathlib import Path
 import itertools
 from typing import Dict, List, Tuple, Optional, Any, Union
@@ -10,6 +11,76 @@ from typing import Dict, List, Tuple, Optional, Any, Union
 from nuchad.utils import get_results_dir
 
 # Removed import from eda to avoid circular dependency
+
+def load_filtering_config(config_path: Union[str, Path]) -> Dict[str, Any]:
+    """Load filtering configuration from JSON file.
+    
+    Args:
+        config_path: Path to the configuration JSON file
+        
+    Returns:
+        Dictionary containing the configuration
+        
+    Raises:
+        FileNotFoundError: If the config file doesn't exist
+        json.JSONDecodeError: If the config file is not valid JSON
+        ValueError: If the config file is missing required fields
+    """
+    # Convert to Path object and resolve relative paths
+    config_path = Path(config_path)
+    if not config_path.is_absolute():
+        # Look in filtering_configs directory
+        config_path = Path(__file__).parent.parent.parent.parent / "filtering_configs" / config_path
+    
+    # Load the JSON file
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    
+    # Validate required fields
+    required_fields = ['name', 'description', 'filters']
+    for field in required_fields:
+        if field not in config:
+            raise ValueError(f"Configuration file missing required field: {field}")
+    
+    # Validate filters section
+    filter_defaults = {
+        'require_af': True,
+        'require_follow_up': True,
+        'require_stroke': False,
+        'af_before_time1': True,
+        'min_follow_up_days': 365,
+        'stroke_window_days': 365,
+        'stroke_outcome_filter': {
+            'enabled': False,
+            'include_values': [1, 2],
+            'exclude_pre_af_strokes': False
+        }
+    }
+    
+    # Fill in missing filter parameters with defaults
+    for key, default_value in filter_defaults.items():
+        if key not in config['filters']:
+            config['filters'][key] = default_value
+    
+    return config
+
+
+def get_available_configs() -> List[str]:
+    """Get list of available configuration files.
+    
+    Returns:
+        List of configuration file names (without .json extension)
+    """
+    configs_dir = Path(__file__).parent.parent.parent.parent / "filtering_configs"
+    if not configs_dir.exists():
+        return []
+    
+    config_files = []
+    for file_path in configs_dir.glob("*.json"):
+        config_files.append(file_path.stem)
+    
+    return sorted(config_files)
+
 
 def filter_eligible_patients(
     df: pd.DataFrame,
@@ -19,6 +90,8 @@ def filter_eligible_patients(
     af_before_time1: bool = True,
     min_follow_up_days: int = 365,
     stroke_window_days: int = 365,
+    stroke_outcome_filter: Optional[Dict[str, Any]] = None,
+    config_name: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """Filter dataframe to eligible patients based on criteria.
     
@@ -30,6 +103,8 @@ def filter_eligible_patients(
         af_before_time1: If True, AF must be diagnosed before or at time1
         min_follow_up_days: Minimum follow-up period in days
         stroke_window_days: Window after time1 in which stroke must occur (if required)
+        stroke_outcome_filter: Dictionary with stroke outcome filtering parameters
+        config_name: Name of the configuration used (for metadata)
         
     Returns:
         Tuple containing:
@@ -120,7 +195,85 @@ def filter_eligible_patients(
             "percent_remaining": round(patients_after / filter_stats["total"] * 100, 1)
         })
     
+    # Apply stroke outcome filter if specified
+    if stroke_outcome_filter and stroke_outcome_filter.get('enabled', False):
+        include_values = stroke_outcome_filter.get('include_values', [1, 2])
+        exclude_pre_af = stroke_outcome_filter.get('exclude_pre_af_strokes', False)
+        
+        # Create filter description
+        filter_description = f"Stroke outcome in {include_values}"
+        if exclude_pre_af:
+            filter_description += " (excluding pre-AF strokes)"
+        
+        # Create the mask
+        if 'stroke_1Y' in current_df.columns:
+            # Include specified stroke outcome values
+            mask = current_df['stroke_1Y'].isin(include_values)
+            
+            # Exclude pre-AF strokes if requested
+            if exclude_pre_af:
+                mask = mask & (current_df['stroke_1Y'] != 4)
+            
+            # Exclude missing values
+            mask = mask & current_df['stroke_1Y'].notna()
+        else:
+            # If no stroke_1Y column, create empty mask
+            mask = pd.Series(False, index=current_df.index)
+        
+        filter_stats["filter_masks"]["stroke_outcome"] = mask
+        filter_stats["filter_descriptions"]["stroke_outcome"] = filter_description
+        
+        patients_before = len(current_df)
+        current_df = current_df[mask]
+        patients_after = len(current_df)
+        
+        filter_stats["steps"].append({
+            "description": filter_description,
+            "remaining": patients_after,
+            "removed": patients_before - patients_after,
+            "percent_remaining": round(patients_after / filter_stats["total"] * 100, 1)
+        })
+    
+    # Add configuration metadata to filter stats
+    if config_name:
+        filter_stats["config_name"] = config_name
+    
     return current_df, filter_stats
+
+
+def filter_patients_from_config(
+    df: pd.DataFrame,
+    config_path: Union[str, Path]
+) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    """Filter patients using a configuration file.
+    
+    Args:
+        df: The input dataframe with patient data
+        config_path: Path to the configuration JSON file
+        
+    Returns:
+        Tuple containing:
+            - Filtered dataframe with only eligible patients
+            - Dictionary with filter statistics for reporting
+    """
+    # Load the configuration
+    config = load_filtering_config(config_path)
+    
+    # Extract filtering parameters
+    filters = config['filters']
+    
+    # Apply the filters
+    return filter_eligible_patients(
+        df=df,
+        require_af=filters['require_af'],
+        require_follow_up=filters['require_follow_up'],
+        require_stroke=filters['require_stroke'],
+        af_before_time1=filters['af_before_time1'],
+        min_follow_up_days=filters['min_follow_up_days'],
+        stroke_window_days=filters['stroke_window_days'],
+        stroke_outcome_filter=filters['stroke_outcome_filter'],
+        config_name=config['name']
+    )
 
 
 def generate_filter_report(

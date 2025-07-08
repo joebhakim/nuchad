@@ -19,6 +19,7 @@ import seaborn as sns
 from scipy import stats
 from pathlib import Path
 import warnings
+import json
 
 from nuchad.utils import get_results_dir
 from nuchad.analysis.eda import get_df, calculate_chadsvasc
@@ -64,6 +65,42 @@ def get_published_risk_table():
     return risk_table
 
 
+def embed_png_metadata(png_path, metadata):
+    """
+    Embed metadata in PNG file using PIL.
+    
+    Args:
+        png_path: Path to PNG file
+        metadata: Dictionary with metadata to embed
+    """
+    try:
+        from PIL import Image
+        from PIL.PngImagePlugin import PngInfo
+        
+        # Convert metadata to JSON string
+        metadata_json = json.dumps(metadata, indent=2, default=str)
+        
+        # Open the PNG file
+        with Image.open(png_path) as img:
+            # Create PngInfo object
+            png_info = PngInfo()
+            
+            # Add individual metadata fields
+            for key, value in metadata.items():
+                png_info.add_text(f"model_comparison.{key}", str(value))
+            
+            # Add full metadata as JSON
+            png_info.add_text("model_comparison.metadata", metadata_json)
+            
+            # Save with metadata
+            img.save(png_path, pnginfo=png_info)
+            
+    except ImportError:
+        print("Warning: PIL not available, skipping PNG metadata embedding")
+    except Exception as e:
+        print(f"Warning: Failed to embed PNG metadata: {e}")
+
+
 def prepare_modeling_data(df):
     """
     Prepare data for modeling by creating proper feature matrix.
@@ -80,15 +117,21 @@ def prepare_modeling_data(df):
     # Define covariates that match CHADS-VAsC components
     feature_cols = ['age', 'gender', 'hf', 'hypertension', 'HB_stroke_history', 'diab', 'vasc_dis_mi_pad']
     
+    # Handle column compatibility between datasets
+    df_working = df.copy()
+    if 'Stroke_TIA_hx' in df.columns and 'HB_stroke_history' not in df.columns:
+        df_working['HB_stroke_history'] = df['Stroke_TIA_hx']
+        print("Note: Using 'Stroke_TIA_hx' as 'HB_stroke_history' for compatibility")
+    
     # Check which columns exist
-    available_cols = [col for col in feature_cols if col in df.columns]
-    missing_cols = [col for col in feature_cols if col not in df.columns]
+    available_cols = [col for col in feature_cols if col in df_working.columns]
+    missing_cols = [col for col in feature_cols if col not in df_working.columns]
     
     if missing_cols:
         print(f"Warning: Missing columns {missing_cols}")
     
     # Create feature matrix
-    X = df[available_cols].copy()
+    X = df_working[available_cols].copy()
     
     # Handle gender: convert to binary (female=1)
     if 'gender' in X.columns:
@@ -103,7 +146,7 @@ def prepare_modeling_data(df):
     X = X.fillna(0)
     
     # Create outcome variable
-    y = (df['stroke_1Y'] == 1).astype(int)
+    y = (df_working['stroke_1Y'] == 1).astype(int)
     
     return X, y, list(X.columns)
 
@@ -178,13 +221,14 @@ def bootstrap_auc_difference(y_true, scores_1, scores_2, n_bootstrap=1000, rando
     return mean_diff, ci_lower, ci_upper
 
 
-def create_comparison_plot(df, save_path):
+def create_comparison_plot(df, save_path, filter_stats=None):
     """
     Create ROC curve comparison plot.
     
     Args:
         df: DataFrame with score_risk and model_risk columns
-        save_path: Path to save the plot
+        save_path: Path to save the plot  
+        filter_stats: Optional filtering statistics for metadata
     """
     y_true = (df['stroke_1Y'] == 1).astype(int)
     
@@ -211,15 +255,20 @@ def create_comparison_plot(df, save_path):
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
+    
+    # Embed metadata in PNG if filter_stats provided
+    if filter_stats:
+        embed_png_metadata(save_path, filter_stats)
 
 
-def save_results_table(results, save_path):
+def save_results_table(results, save_path, filter_stats=None):
     """
     Save comparison results to markdown table.
     
     Args:
         results: Dictionary with comparison results
         save_path: Path to save the markdown file
+        filter_stats: Optional filtering statistics to include in metadata
     """
     with open(save_path, 'w') as f:
         f.write("# Model Comparison: CHADS-VAsC Score vs. UK-Fitted Model\n\n")
@@ -228,6 +277,21 @@ def save_results_table(results, save_path):
         f.write("Comparison of discrimination performance between:\n")
         f.write("1. **Off-the-shelf CHADS-VAsC**: Using published risk tables from Lip et al.\n")
         f.write("2. **UK-Fitted Model**: Logistic regression trained on UK cohort data\n\n")
+        
+        # Add filtering information if available
+        if filter_stats:
+            f.write("## Patient Filtering\n\n")
+            if 'config_name' in filter_stats:
+                f.write(f"**Configuration**: {filter_stats['config_name']}\n\n")
+            
+            f.write("### Filtering Steps\n\n")
+            f.write("| Step | Patients Remaining | Patients Removed | % of Original |\n")
+            f.write("|------|-------------------|------------------|---------------|\n")
+            f.write(f"| Initial cohort | {filter_stats['total']:,} | 0 | 100.0% |\n")
+            
+            for step in filter_stats['steps']:
+                f.write(f"| {step['description']} | {step['remaining']:,} | {step['removed']:,} | {step['percent_remaining']}% |\n")
+            f.write("\n")
         
         f.write("## Sample Characteristics\n\n")
         f.write(f"- Total patients: {results['n_patients']:,}\n")
@@ -268,12 +332,13 @@ def save_results_table(results, save_path):
         f.write("![ROC Comparison](model_comparison_roc.png)\n")
 
 
-def perform_model_comparison(df=None):
+def perform_model_comparison(df=None, filter_stats=None):
     """
     Perform the complete model comparison analysis.
     
     Args:
         df: Optional pre-loaded DataFrame. If None, will load and prepare the data.
+        filter_stats: Optional filtering statistics from eligibility filtering
         
     Returns:
         Dictionary with comparison results
@@ -285,8 +350,11 @@ def perform_model_comparison(df=None):
         df = get_df()
         df, _ = filter_eligible_patients(df)
     
-    # Ensure we have required columns
-    required_cols = ['stroke_1Y', 'age', 'gender', 'hf', 'hypertension', 'HB_stroke_history', 'diab', 'vasc_dis_mi_pad']
+    # Ensure we have required columns (handle column compatibility)
+    required_cols = ['stroke_1Y', 'age', 'gender', 'hf', 'hypertension', 'diab', 'vasc_dis_mi_pad']
+    stroke_history_col = 'HB_stroke_history' if 'HB_stroke_history' in df.columns else 'Stroke_TIA_hx'
+    required_cols.append(stroke_history_col)
+    
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
@@ -296,6 +364,9 @@ def perform_model_comparison(df=None):
     # 1. Compute CHADS-VAsC scores
     print("Computing CHADS-VAsC scores...")
     df = df.copy()
+    # Handle column compatibility for CHADS-VAsC calculation
+    if 'Stroke_TIA_hx' in df.columns and 'HB_stroke_history' not in df.columns:
+        df['HB_stroke_history'] = df['Stroke_TIA_hx']
     df['chadsvasc_score'] = compute_chadsvasc_score(df)
     
     # 2. Map scores to published risk tables
@@ -353,12 +424,12 @@ def perform_model_comparison(df=None):
     
     # Save ROC plot
     plot_path = results_dir / 'model_comparison_roc.png'
-    create_comparison_plot(df, plot_path)
+    create_comparison_plot(df, plot_path, filter_stats)
     print(f"ROC plot saved to: {plot_path}")
     
     # Save results table
     table_path = results_dir / 'model_comparison_results.md'
-    save_results_table(results, table_path)
+    save_results_table(results, table_path, filter_stats)
     print(f"Results table saved to: {table_path}")
     
     print("Model comparison analysis completed!")

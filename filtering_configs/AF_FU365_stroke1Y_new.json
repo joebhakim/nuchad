@@ -1,0 +1,23 @@
+{
+  "name": "AF with Stroke Within 1 Year (New Dataset)",
+  "description": "AF patients from new dataset who experienced stroke within 1 year of AF diagnosis. This is a stroke-enriched cohort for treatment effectiveness studies.",
+  "dataset_compatibility": ["new"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": false,
+    "af_before_time1": true,
+    "min_follow_up_days": 365,
+    "stroke_window_days": 365,
+    "stroke_outcome_filter": {
+      "enabled": true,
+      "include_values": [1],
+      "exclude_pre_af_strokes": true
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "Treatment effectiveness in high-risk patients with early strokes",
+    "notes": "Highly selected cohort - only patients with stroke_1Y=1 (stroke within 1 year). Will have uniform stroke rates and limited discrimination."
+  }
+}

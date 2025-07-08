@@ -1,0 +1,23 @@
+{
+  "name": "AF with Short Follow-up (Both Datasets)",
+  "description": "AF patients with 90-day follow-up requirement, no stroke requirement. Useful for early outcome studies where longer follow-up may introduce bias.",
+  "dataset_compatibility": ["both"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": false,
+    "af_before_time1": true,
+    "min_follow_up_days": 90,
+    "stroke_window_days": 90,
+    "stroke_outcome_filter": {
+      "enabled": false,
+      "include_values": [1, 2],
+      "exclude_pre_af_strokes": false
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "Early outcome studies and sensitivity analysis",
+    "notes": "Shorter follow-up requirement increases sample size but may miss later events. Compatible with both datasets."
+  }
+}

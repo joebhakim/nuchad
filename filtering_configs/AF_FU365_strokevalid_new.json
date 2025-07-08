@@ -1,0 +1,23 @@
+{
+  "name": "AF with Valid Stroke Outcomes (New Dataset)",
+  "description": "AF patients from new dataset with valid stroke outcomes (excludes pre-AF strokes). Includes strokes within 1 year, after 1 year, and no strokes.",
+  "dataset_compatibility": ["new"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": false,
+    "af_before_time1": true,
+    "min_follow_up_days": 365,
+    "stroke_window_days": 365,
+    "stroke_outcome_filter": {
+      "enabled": true,
+      "include_values": [1, 2, 3],
+      "exclude_pre_af_strokes": true
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "Analysis of new dataset with proper stroke outcome filtering",
+    "notes": "Excludes stroke_1Y=4 (pre-AF strokes) and missing values. Includes: 1=stroke within 1Y, 2=no stroke within 1Y, 3=stroke after 1Y."
+  }
+}

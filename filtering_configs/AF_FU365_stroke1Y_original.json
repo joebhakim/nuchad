@@ -1,0 +1,23 @@
+{
+  "name": "AF with Early Stroke Events (Original Dataset)",
+  "description": "AF patients with 1-year follow-up who experienced stroke within 1 year of AF diagnosis. Used for studying early stroke risk factors.",
+  "dataset_compatibility": ["original"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": true,
+    "af_before_time1": true,
+    "min_follow_up_days": 365,
+    "stroke_window_days": 365,
+    "stroke_outcome_filter": {
+      "enabled": false,
+      "include_values": [1],
+      "exclude_pre_af_strokes": false
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "Early stroke risk factor analysis and case-control studies",
+    "notes": "This creates a stroke-enriched cohort for studying factors associated with early stroke events. May have selection bias for risk prediction."
+  }
+}

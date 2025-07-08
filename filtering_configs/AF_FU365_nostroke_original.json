@@ -1,0 +1,23 @@
+{
+  "name": "Standard AF Population Analysis (Original Dataset)",
+  "description": "Population-based AF patients with 1-year follow-up, no stroke requirement. This creates a representative AF population for risk prediction modeling.",
+  "dataset_compatibility": ["original"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": false,
+    "af_before_time1": true,
+    "min_follow_up_days": 365,
+    "stroke_window_days": 365,
+    "stroke_outcome_filter": {
+      "enabled": false,
+      "include_values": [1, 2],
+      "exclude_pre_af_strokes": false
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "Population-based risk prediction and model validation",
+    "notes": "This is the standard configuration for population-based analysis. Maintains natural stroke risk distribution across CHADS-VASc scores."
+  }
+}
