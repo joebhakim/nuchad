@@ -430,7 +430,7 @@ def main():
     args = parser.parse_args()
     
     # Import here to avoid circular import
-    from nuchad.analysis.eda import get_df
+    from nuchad.analysis.eda_old import get_df
     
     # Load the data
     df = get_df()

@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 import json
 
 from nuchad.utils import get_data_path, get_results_dir
-from nuchad.analysis.eda import get_df, calculate_chadsvasc
+from nuchad.analysis.eda_old import get_df, calculate_chadsvasc
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 def embed_png_metadata(png_path, metadata):
@@ -542,7 +542,7 @@ def perform_subgroup_analysis(data_file="random_nuchad_250623.csv", subgroup_col
         import os
         
         # Load the full dataset using the EDA module's get_df function
-        from nuchad.analysis.eda import get_df as get_df_eda
+        from nuchad.analysis.eda_old import get_df as get_df_eda
         df = get_df_eda(data_file)
         df, _ = filter_eligible_patients(df)
         

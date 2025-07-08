@@ -2,7 +2,7 @@
 """Generate Table 2 - Stroke rates by CHADS-VASc score."""
 
 import sys
-from nuchad.analysis import eda, table2
+from nuchad.analysis import eda_old, table2
 from nuchad.data_processing import eligibility_filters as data_utils
 
 def main():
@@ -10,7 +10,7 @@ def main():
     print("Generating Table 2 - Stroke rates by CHADS-VASc score...")
     
     # Load and filter data
-    df = eda.get_df()
+    df = eda_old.get_df()
     eligible_df, _ = data_utils.filter_eligible_patients(df)
     
     # Generate table

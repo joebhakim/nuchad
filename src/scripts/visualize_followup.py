@@ -2,7 +2,7 @@
 """Generate follow-up time visualization."""
 
 import sys
-from nuchad.analysis import eda
+from nuchad.analysis import eda_old
 from nuchad.visualization import visualize_end_fu
 from nuchad.data_processing import eligibility_filters as data_utils
 
@@ -11,7 +11,7 @@ def main():
     print("Generating follow-up time visualization...")
     
     # Load and filter data
-    df = eda.get_df()
+    df = eda_old.get_df()
     eligible_df, _ = data_utils.filter_eligible_patients(df)
     
     # Generate visualization

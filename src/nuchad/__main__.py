@@ -4,7 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from nuchad.analysis import eda, table1, table2, table1_stratified, table2_stratified, density_ratio_reweighting, model_comparison
+from nuchad.analysis import eda_old, table1, table2, table1_stratified, table2_stratified, density_ratio_reweighting, model_comparison
 from nuchad.visualization import visualize_end_fu
 from nuchad.data_processing import eligibility_filters as data_utils
 from nuchad.utils import get_results_dir
@@ -85,7 +85,7 @@ def main():
             args.af_before_time1 = True
             
         # Run the filtering utility directly
-        df = eda.get_df()
+        df = eda_old.get_df()
         filtered_df, filter_stats = data_utils.filter_eligible_patients(
             df,
             require_af=args.require_af,
@@ -118,12 +118,12 @@ def main():
         return 0
     
     # Load the data once for other tasks
-    df = eda.get_df()
+    df = eda_old.get_df()
     eligible_df, _ = data_utils.filter_eligible_patients(df)
     
     # Run the requested analysis task
     if args.task == "eda":
-        results = eda.validate_chadsvasc(eligible_df, "time1", "end_fu")
+        results = eda_old.validate_chadsvasc(eligible_df, "time1", "end_fu")
         print(results.to_markdown(index=False))
     
     elif args.task == "table1":

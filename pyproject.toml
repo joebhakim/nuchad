@@ -34,6 +34,7 @@ density_reweighting = "scripts.density_reweighting:main"
 model_comparison = "scripts.model_comparison:main"
 filter_patients = "scripts.filter_patients:main"
 compare_datasets = "scripts.compare_datasets:main"
+run_survival_eda = "scripts.run_survival_eda:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nuchad", "src/scripts"]

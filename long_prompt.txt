@@ -1,0 +1,5 @@
+I've asked the collaborators. In the meantime, let's make an entirely new EDA script. I've moved the old eda to eda_old. For the new one, let's move closer to survival modelling: it should produce several plots, including kaplan       │
+│   meier curves, as well as one that has: a sample (n=100) pre-filtered (and a separate one for post-filtered) patients in a horizontal bar chart, with left edges of each bar being the equivalent time_1, right edges being time_2, other   │
+│   times (e.g. end_fu) being annotated, and differnt markings for when e.g. time_2 (or equivalent) is missing (i.e. when it is missing, make the right edge of each horizontal bar the max and use an X symbol). ADDITIONALLY, right to     │
+│   the right of this graph, those same sampled patients should have a grid view of each of their categorical data, (with a table header of e.g. gender, hypertension, and a color for 0 or 1), and finally to the right of THIS inset,        │
+│   another such grid for continuous variables. We'd actually done this already, with the result being in `longitudinal_analysis.html`, so use that as reference.  

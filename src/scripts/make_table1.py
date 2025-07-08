@@ -2,7 +2,7 @@
 """Generate Table 1 - Patient characteristics."""
 
 import sys
-from nuchad.analysis import eda, table1
+from nuchad.analysis import eda_old, table1
 from nuchad.data_processing import eligibility_filters as data_utils
 from nuchad.utils import get_results_dir
 
@@ -11,7 +11,7 @@ def main():
     print("Generating Table 1 - Patient characteristics...")
     
     # Load and filter data
-    df = eda.get_df()
+    df = eda_old.get_df()
     eligible_df, _ = data_utils.filter_eligible_patients(df)
     
     # Generate table

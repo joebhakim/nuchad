@@ -6,7 +6,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from nuchad.analysis import eda
+from nuchad.analysis import eda_old
 from nuchad.data_processing import eligibility_filters as data_utils
 from nuchad.utils import get_results_dir
 
@@ -222,9 +222,9 @@ def main():
     
     # Load data
     if args.dataset == "new":
-        df = eda.get_df(data_file="random_nuchad_250623.csv")
+        df = eda_old.get_df(data_file="random_nuchad_250623.csv")
     else:
-        df = eda.get_df()
+        df = eda_old.get_df()
     
     # Store original dataframe for comparison
     df_original = df.copy()

@@ -22,7 +22,7 @@ import warnings
 import json
 
 from nuchad.utils import get_results_dir
-from nuchad.analysis.eda import get_df, calculate_chadsvasc
+from nuchad.analysis.eda_old import get_df, calculate_chadsvasc
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 

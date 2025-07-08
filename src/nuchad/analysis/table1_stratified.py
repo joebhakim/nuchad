@@ -3,7 +3,7 @@ import numpy as np
 import os
 from scipy import stats
 from scipy.stats import f_oneway, chi2_contingency
-from nuchad.analysis.eda import get_df, calculate_chadsvasc
+from nuchad.analysis.eda_old import get_df, calculate_chadsvasc
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 from nuchad.utils import get_results_dir
 

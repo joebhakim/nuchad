@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from nuchad.analysis.eda import get_df
+from nuchad.analysis.eda_old import get_df
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 from nuchad.utils import get_results_dir
 
@@ -157,7 +157,7 @@ def calculate_chadsvasc_distribution(df):
     """
     # Calculate CHADS-VASc scores if not already present
     if 'CHADS-Vasc' not in df.columns:
-        from nuchad.analysis.eda import calculate_chadsvasc
+        from nuchad.analysis.eda_old import calculate_chadsvasc
         df['CHADS-Vasc'] = df.apply(calculate_chadsvasc, axis=1)
     
     # Get distribution

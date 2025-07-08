@@ -7,7 +7,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from nuchad.analysis import eda, density_ratio_reweighting
+from nuchad.analysis import density_ratio_reweighting, eda_old
 from nuchad.data_processing import eligibility_filters as data_utils
 from nuchad.utils import get_project_root
 
@@ -24,7 +24,7 @@ def test_new_density_analysis():
     try:
         # Load new dataset
         print("\n1. Loading new dataset...")
-        df = eda.get_df("random_nuchad_250623.csv")
+        df = eda_old.get_df("random_nuchad_250623.csv")
         print(f"   Loaded dataset shape: {df.shape}")
         print(f"   Has time1: {'time1' in df.columns}")
         print(f"   Has time2: {'time2' in df.columns}")

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from nuchad.utils import get_results_dir
-from nuchad.analysis.eda import get_df, calculate_chadsvasc, calculate_stroke_rate, confidence_interval
+from nuchad.analysis.eda_old import get_df, calculate_chadsvasc, calculate_stroke_rate, confidence_interval
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 def generate_cohort_table(df=None):

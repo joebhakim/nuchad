@@ -4,7 +4,7 @@
 import sys
 import argparse
 import numpy as np
-from nuchad.analysis import eda, model_comparison
+from nuchad.analysis import eda_old, model_comparison
 from nuchad.data_processing import eligibility_filters as data_utils
 
 def main():
@@ -21,9 +21,9 @@ def main():
     # Load and filter data
     if args.dataset == 'new':
         # Use the new dataset
-        df = eda.get_df(data_file="random_nuchad_250623.csv")
+        df = eda_old.get_df(data_file="random_nuchad_250623.csv")
     else:
-        df = eda.get_df()
+        df = eda_old.get_df()
     
     # Apply filtering
     if args.config:

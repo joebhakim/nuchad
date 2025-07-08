@@ -7,7 +7,7 @@ from pathlib import Path
 import importlib.resources
 
 from nuchad.utils import get_data_file, get_results_dir
-from nuchad.analysis import eda, table1, table2, table1_stratified, table2_stratified, density_ratio_reweighting
+from nuchad.analysis import eda_old, table1, table2, table1_stratified, table2_stratified, density_ratio_reweighting
 from nuchad.visualization import visualize_end_fu
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients, generate_filter_report
 
@@ -49,7 +49,7 @@ def data_frame():
     if not check_data_exists():
         pytest.skip("Required data file 'random_nuchad.csv' not found")
     
-    return eda.get_df()
+    return eda_old.get_df()
 
 @pytest.fixture(scope="module")
 def eligible_data_frame(data_frame):
@@ -74,7 +74,7 @@ def setup_and_teardown():
 def test_eda(eligible_data_frame):
     """Test the exploratory data analysis functionality."""
     # Run EDA validation
-    results = eda.validate_chadsvasc(eligible_data_frame, "time1", "end_fu")
+    results = eda_old.validate_chadsvasc(eligible_data_frame, "time1", "end_fu")
     
     # Check that results dataframe has expected structure
     assert isinstance(results, pd.DataFrame)
@@ -117,7 +117,7 @@ def test_table1_stratified(eligible_data_frame):
     
     # Generate stratified table1
     if 'CHADS-Vasc' not in eligible_data_frame.columns:
-        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(eda.calculate_chadsvasc, axis=1)
+        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(eda_old.calculate_chadsvasc, axis=1)
         
     table1_stratified.generate_stratified_table1(eligible_data_frame, output_path=output_path)
     
@@ -157,7 +157,7 @@ def test_table2_stratified(eligible_data_frame):
     
     # Generate stratified table2
     if 'CHADS-Vasc' not in eligible_data_frame.columns:
-        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(eda.calculate_chadsvasc, axis=1)
+        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(eda_old.calculate_chadsvasc, axis=1)
         
     results = table2_stratified.generate_stratified_table2(eligible_data_frame)
     

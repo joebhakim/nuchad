@@ -2,7 +2,7 @@
 
 __version__ = "0.1.0"
 
-from nuchad.analysis import eda, table2, density_ratio_reweighting
+from nuchad.analysis import eda_old, table2, density_ratio_reweighting
 from nuchad.visualization import visualize_end_fu
 from nuchad.utils import (
     get_project_root,

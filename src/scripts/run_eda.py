@@ -2,7 +2,7 @@
 """Run exploratory data analysis and CHADS-VASc validation."""
 
 import sys
-from nuchad.analysis import eda
+from nuchad.analysis import eda_old
 from nuchad.data_processing import eligibility_filters as data_utils
 
 def main():
@@ -10,11 +10,11 @@ def main():
     print("Running exploratory data analysis and CHADS-VASc validation...")
     
     # Load and filter data
-    df = eda.get_df()
+    df = eda_old.get_df()
     eligible_df, _ = data_utils.filter_eligible_patients(df)
     
     # Run validation
-    results = eda.validate_chadsvasc(eligible_df, "time1", "end_fu")
+    results = eda_old.validate_chadsvasc(eligible_df, "time1", "end_fu")
     print(results.to_markdown(index=False))
     
     return 0

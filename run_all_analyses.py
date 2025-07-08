@@ -21,7 +21,7 @@ from datetime import datetime
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from nuchad.analysis import eda, density_ratio_reweighting, model_comparison
+from nuchad.analysis import density_ratio_reweighting, eda_old, model_comparison
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 from nuchad.utils import get_results_dir
 
@@ -38,16 +38,16 @@ def main():
     
     # Load and filter data once
     print("\n1. Loading and filtering data...")
-    df = eda.get_df()
+    df = eda_old.get_df()
     eligible_df, filter_stats = filter_eligible_patients(df)
     print(f"   Eligible patients: {len(eligible_df):,} out of {filter_stats['total']:,}")
     
     try:
         # Analysis 1: CHADS-VAsC Validation
         print("\n2. Running CHADS-VAsC validation...")
-        results_df = eda.validate_chadsvasc(eligible_df, "time1", "end_fu", "stroke_1Y")
+        results_df = eda_old.validate_chadsvasc(eligible_df, "time1", "end_fu", "stroke_1Y")
         results_df.to_markdown(results_dir / "results_df.md", numalign="left", stralign="left")
-        eda.plot_already_results()
+        eda_old.plot_already_results()
         print("   ✓ Generated: observed_vs_original_stroke_rates.png")
         
         # Analysis 2: Density Ratio Reweighting  

@@ -1,6 +1,6 @@
 """Analysis modules for CHADS-VASc score calculation and validation."""
 
-from . import eda
+from . import eda_old
 from . import table1
 from . import table2
 from . import table1_stratified
