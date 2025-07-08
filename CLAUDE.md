@@ -6,6 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a CHADS-VASc analysis package for stroke risk prediction in atrial fibrillation (AF) patients. The package performs transportability analysis comparing stroke rates between the current dataset and the original Lip et al. cohort, using density ratio reweighting and model comparison techniques.
 
+## ⚠️ CRITICAL DATA ENCODING ISSUE
+
+**FUNDAMENTAL INCOMPATIBILITY DISCOVERED**: The stroke outcome variable (`stroke_1Y`) has completely different encodings between datasets, making cross-dataset analysis invalid without proper handling:
+
+- **OLD dataset** (`random_nuchad.csv`): stroke_1Y = 1 (stroke), stroke_1Y = 2 (controls)
+- **NEW dataset** (`random_nuchad_250623.csv`): stroke_1Y = 1-4 (different stroke types), Missing = controls
+
+**Key incompatibility**: `stroke_1Y = 2` means "no stroke" in old dataset but "stroke after 1 year" in new dataset!
+
+Run `python analyze_stroke_encoding.py` to see detailed proof of this issue. This analysis must be shared with collaborators before any cross-dataset work.
+
 ## Build and Development Commands
 
 ### Installation
@@ -44,10 +55,15 @@ uv run make_table2_stratified          # Stratified stroke rates
 uv run run_eda                         # EDA and validation
 uv run run_survival_eda                # Survival-focused EDA with Kaplan-Meier curves (all datasets)
 uv run run_survival_eda -d random_nuchad.csv  # Run on specific dataset
+uv run run_survival_eda --list-configs        # List available filter configurations
+uv run run_survival_eda -f AF_FU365_population_new  # Use specific JSON filter config
 uv run visualize_followup              # Follow-up visualization
 uv run density_reweighting             # Density ratio reweighting
 uv run model_comparison                # Model comparison
 uv run filter_patients                 # Patient filtering report (with options)
+
+# Data validation and critical encoding analysis
+python analyze_stroke_encoding.py          # ESSENTIAL: Proves stroke_1Y encoding incompatibility between datasets
 ```
 
 #### Legacy CLI (still available)
@@ -144,12 +160,14 @@ src/
 **Output Organization**: All results saved to `results/` directory with consistent naming
 
 **Survival EDA Features**: 
-- Creates dataset-specific subdirectories (`results/survival_eda_<dataset_name>/`)
+- Creates dataset-specific subdirectories (`results/survival_eda_<dataset_name>/` or `results/survival_eda_<dataset_name>_<filter_config>/`)
 - Embeds rich metadata in HTML files including data source and filtering steps
 - Supports both pre-filter and post-filter analysis
+- **JSON Filter Configuration Support**: Use predefined filter configurations from `filtering_configs/` directory
 - Generates Kaplan-Meier curves stratified by CHADS-VASc risk groups
 - Creates interactive timeline visualizations with patient sampling
-- Outputs JSON-formatted filtering metadata for reproducibility
+- Outputs complete JSON-formatted filtering metadata for reproducibility
+- Graceful fallback to default filtering if configuration not found
 
 ### Testing Strategy
 

@@ -136,6 +136,32 @@ nuchad/
 └── README.md
 ```
 
+## ⚠️ Critical Data Encoding Issue
+
+**IMPORTANT**: The stroke outcome variable (`stroke_1Y`) is encoded differently between datasets:
+
+- **OLD dataset** (`random_nuchad.csv`): 
+  - `stroke_1Y = 1`: Stroke within 1 year (6.8%)
+  - `stroke_1Y = 2`: **NO STROKE** (controls) (93.2%)
+
+- **NEW dataset** (`random_nuchad_250623.csv`):
+  - `stroke_1Y = 1`: Stroke within 1 year (2.6%)  
+  - `stroke_1Y = 2`: **STROKE AFTER 1 year** (5.3%)
+  - `stroke_1Y = 3`: Stroke same day as AF (3.8%)
+  - `stroke_1Y = 4`: Stroke before AF (5.9%)
+  - **Missing `stroke_1Y`**: NO STROKE (controls) (82.4%)
+
+**This fundamental incompatibility makes cross-dataset analysis invalid without proper recoding.**
+
+### Data Validation Script
+
+```bash
+# Run comprehensive stroke encoding analysis
+python analyze_stroke_encoding.py
+```
+
+This script provides definitive proof of the encoding differences and should be run to demonstrate the issue to collaborators.
+
 ## Data Requirements
 
 The package expects a patient-level dataset containing AF patients with the following key columns:

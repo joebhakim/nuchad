@@ -24,7 +24,7 @@ from pathlib import Path
 warnings.filterwarnings('ignore')
 
 from nuchad.utils.paths_data import get_data_file, get_results_dir
-from nuchad.data_processing.eligibility_filters import filter_eligible_patients
+from nuchad.data_processing.eligibility_filters import filter_eligible_patients, filter_patients_from_config, get_available_configs
 
 
 def create_metadata_header(data_file: str, filter_stats: Optional[Dict] = None, 
@@ -390,7 +390,8 @@ def create_survival_statistics_table(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = True, 
-                     post_filter: bool = True, sample_size: int = 100) -> None:
+                     post_filter: bool = True, sample_size: int = 100, 
+                     filter_config: Optional[str] = None) -> None:
     """
     Run comprehensive survival-focused EDA.
     
@@ -399,12 +400,19 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
         pre_filter: Generate visualizations for pre-filtered data
         post_filter: Generate visualizations for post-filtered data
         sample_size: Number of patients to sample for timeline visualization
+        filter_config: Name of JSON filter configuration file (without .json extension)
     """
     results_dir = get_results_dir()
     
     # Create data-specific subdirectory
     data_name = Path(data_file).stem  # Remove .csv extension
-    data_results_dir = results_dir / f"survival_eda_{data_name}"
+    
+    # Add filter config to directory name if specified
+    if filter_config:
+        data_results_dir = results_dir / f"survival_eda_{data_name}_{filter_config}"
+    else:
+        data_results_dir = results_dir / f"survival_eda_{data_name}"
+    
     data_results_dir.mkdir(exist_ok=True)
     
     # Load data
@@ -455,18 +463,36 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
     
     # Post-filter analysis
     if post_filter:
-        print(f"\n=== POST-FILTER ANALYSIS ({data_file}) ===")
+        filter_desc = f"using {filter_config} config" if filter_config else "using default filters"
+        print(f"\n=== POST-FILTER ANALYSIS ({data_file}) {filter_desc} ===")
         
-        # Filter patients
-        filtered_df, filter_stats = filter_eligible_patients(
-            df,
-            require_af=True,
-            require_follow_up=True,
-            require_stroke=False,
-            af_before_time1=True,
-            min_follow_up_days=365,
-            stroke_window_days=365
-        )
+        # Filter patients using JSON config or default method
+        if filter_config:
+            try:
+                filtered_df, filter_stats = filter_patients_from_config(df, f"{filter_config}.json")
+                print(f"Applied filter configuration: {filter_config}")
+            except Exception as e:
+                print(f"Error loading filter config '{filter_config}': {e}")
+                print("Falling back to default filtering...")
+                filtered_df, filter_stats = filter_eligible_patients(
+                    df,
+                    require_af=True,
+                    require_follow_up=True,
+                    require_stroke=False,
+                    af_before_time1=True,
+                    min_follow_up_days=365,
+                    stroke_window_days=365
+                )
+        else:
+            filtered_df, filter_stats = filter_eligible_patients(
+                df,
+                require_af=True,
+                require_follow_up=True,
+                require_stroke=False,
+                af_before_time1=True,
+                min_follow_up_days=365,
+                stroke_window_days=365
+            )
         
         print(f"Filtered to {len(filtered_df)} patients")
         
@@ -483,9 +509,10 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
         km_fig.write_html(km_html_path)
         
         # Add metadata to HTML
+        analysis_type = f"Post-filter Kaplan-Meier ({filter_config})" if filter_config else "Post-filter Kaplan-Meier"
         with open(km_html_path, 'r') as f:
             content = f.read()
-        content = content.replace('<body>', f'<body>{create_metadata_header(data_file, filter_stats, "Post-filter Kaplan-Meier")}')
+        content = content.replace('<body>', f'<body>{create_metadata_header(data_file, filter_stats, analysis_type)}')
         with open(km_html_path, 'w') as f:
             f.write(content)
         
@@ -498,9 +525,10 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
         timeline_fig.write_html(timeline_html_path)
         
         # Add metadata to timeline HTML
+        analysis_type = f"Post-filter Timeline ({filter_config})" if filter_config else "Post-filter Timeline"
         with open(timeline_html_path, 'r') as f:
             content = f.read()
-        content = content.replace('<body>', f'<body>{create_metadata_header(data_file, filter_stats, "Post-filter Timeline")}')
+        content = content.replace('<body>', f'<body>{create_metadata_header(data_file, filter_stats, analysis_type)}')
         with open(timeline_html_path, 'w') as f:
             f.write(content)
         
@@ -510,7 +538,7 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
 
 
 def run_survival_eda_all_datasets(pre_filter: bool = True, post_filter: bool = True, 
-                                  sample_size: int = 100) -> None:
+                                  sample_size: int = 100, filter_config: Optional[str] = None) -> None:
     """Run survival EDA on all available datasets."""
     
     # Find all data files
@@ -518,7 +546,7 @@ def run_survival_eda_all_datasets(pre_filter: bool = True, post_filter: bool = T
     
     for data_file in data_files:
         try:
-            run_survival_eda(data_file, pre_filter, post_filter, sample_size)
+            run_survival_eda(data_file, pre_filter, post_filter, sample_size, filter_config)
         except FileNotFoundError:
             print(f"Skipping {data_file} - file not found")
         except Exception as e:
