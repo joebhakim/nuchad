@@ -29,12 +29,30 @@ def get_df(data_file="random_nuchad.csv"):
         date_cols = ['time1', 'time2', 'earliest_af_date', 'earliest_stroke_date', 'earliest_tia_date', 
                      'end_fu', 'first_OAC_date', 'first_antiplatelet_date']
         
+        # Store original data for re-parsing if needed
+        original_data = {}
+        for col in date_cols:
+            if col in df.columns:
+                original_data[col] = df[col].copy()
+        
         for col in date_cols:
             if col in df.columns:
                 if col in ['time1', 'time2']:
                     df[col] = pd.to_datetime(df[col], format="%Y-%m-%d", errors="coerce")
                 else:
-                    df[col] = pd.to_datetime(df[col], format="%d%b%Y", errors="coerce")
+                    # Try multiple date formats for flexibility
+                    # First try the old format
+                    df[col] = pd.to_datetime(original_data[col], format="%d%b%Y", errors="coerce")
+                    null_count = df[col].isnull().sum()
+                    
+                    # If most are null, try the new format
+                    if null_count > len(df) * 0.8:
+                        df[col] = pd.to_datetime(original_data[col], format="%d-%b-%y", errors="coerce")
+                        null_count = df[col].isnull().sum()
+                    
+                    # If still mostly null, fallback to automatic parsing
+                    if null_count > len(df) * 0.8:
+                        df[col] = pd.to_datetime(original_data[col], errors="coerce")
 
         # Handle dataset compatibility: create time1 and time2 equivalents for new dataset
         if 'time1' not in df.columns and 'earliest_af_date' in df.columns:

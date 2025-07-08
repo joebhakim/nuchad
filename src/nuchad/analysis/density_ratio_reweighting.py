@@ -79,7 +79,15 @@ def get_df(data_path=None):
             if col in ['time1', 'time2']:
                 df[col] = pd.to_datetime(df[col], format="%Y-%m-%d", errors='coerce')
             else:
+                # Try multiple date formats for flexibility
+                # First try the old format
                 df[col] = pd.to_datetime(df[col], format="%d%b%Y", errors='coerce')
+                # If most are null, try the new format
+                if df[col].isnull().sum() > len(df) * 0.8:
+                    df[col] = pd.to_datetime(df[col], format="%d-%b-%y", errors='coerce')
+                # If still mostly null, fallback to automatic parsing
+                if df[col].isnull().sum() > len(df) * 0.8:
+                    df[col] = pd.to_datetime(df[col], errors='coerce')
 
     # Handle dataset compatibility: create time1 and time2 equivalents for new dataset
     if 'time1' not in df.columns and 'earliest_af_date' in df.columns:
@@ -169,7 +177,14 @@ def prepare_data_for_weighting(df):
     df_prep['Hypertension'] = df_prep['hypertension']
     df_prep['Diabetes'] = df_prep['diab']
     df_prep['HeartFailure'] = df_prep['hf']
-    df_prep['StrokeTIA'] = df_prep['HB_stroke_history']
+    # Handle different column names for stroke history
+    if 'HB_stroke_history' in df_prep.columns:
+        df_prep['StrokeTIA'] = df_prep['HB_stroke_history']
+    elif 'Stroke_TIA_hx' in df_prep.columns:
+        df_prep['StrokeTIA'] = df_prep['Stroke_TIA_hx']
+    else:
+        print("Warning: No stroke history column found, setting StrokeTIA to 0")
+        df_prep['StrokeTIA'] = 0
     df_prep['VascularDx'] = df_prep['vasc_dis_mi_pad']
     df_prep['CurrentSmoker'] = (df_prep['smoking_status'] == 'Current smoker').astype(int)
     
@@ -510,6 +525,205 @@ def plot_weight_distribution(df_weighted, save_path, metadata=None):
     # Add metadata to PNG file if provided
     if metadata:
         embed_png_metadata(save_path, metadata)
+
+def perform_subgroup_analysis(data_file="random_nuchad_250623.csv", subgroup_col="Anticoag3m_type"):
+    """
+    Perform density ratio reweighting analysis for each subgroup separately.
+    
+    Args:
+        data_file: Data file to analyze
+        subgroup_col: Column to use for subgroup analysis
+        
+    Returns:
+        Dictionary with results for each subgroup
+    """
+    try:
+        from datetime import datetime
+        import os
+        
+        # Load the full dataset using the EDA module's get_df function
+        from nuchad.analysis.eda import get_df as get_df_eda
+        df = get_df_eda(data_file)
+        df, _ = filter_eligible_patients(df)
+        
+        # Get unique subgroups
+        if subgroup_col not in df.columns:
+            raise ValueError(f"Subgroup column '{subgroup_col}' not found in dataset")
+        
+        subgroups = df[subgroup_col].dropna().unique()
+        print(f"Found {len(subgroups)} subgroups in {subgroup_col}: {list(subgroups)}")
+        
+        # Create subgroup results directory
+        results_base_dir = get_results_dir()
+        subgroup_results_dir = results_base_dir / "subgroup_analysis"
+        subgroup_results_dir.mkdir(exist_ok=True)
+        
+        subgroup_results = {}
+        
+        for subgroup in subgroups:
+            print(f"\n{'='*60}")
+            print(f"Analyzing subgroup: {subgroup}")
+            print(f"{'='*60}")
+            
+            # Filter data for this subgroup
+            subgroup_df = df[df[subgroup_col] == subgroup].copy()
+            print(f"Subgroup size: {len(subgroup_df)} patients")
+            
+            # Skip if subgroup is too small
+            if len(subgroup_df) < 100:
+                print(f"Skipping {subgroup} - too few patients (<100)")
+                continue
+            
+            # Create subgroup-specific results directory
+            subgroup_name_clean = str(subgroup).replace(" ", "_").replace("/", "_")
+            subgroup_dir = subgroup_results_dir / subgroup_name_clean
+            subgroup_dir.mkdir(exist_ok=True)
+            
+            # Temporarily override results directory
+            original_results_dir = results_dir
+            globals()['results_dir'] = subgroup_dir
+            
+            try:
+                # Prepare data for weighting
+                df_prep = prepare_data_for_weighting(subgroup_df)
+                
+                # Make sure CHADS-VASc score is calculated
+                if 'CHADS-Vasc' not in df_prep.columns:
+                    df_prep['CHADS-Vasc'] = df_prep.apply(calculate_chadsvasc, axis=1)
+                
+                # Make sure Follow_Up_Years is calculated
+                if 'Follow_Up_Years' not in df_prep.columns and 'time1' in df_prep.columns and 'end_fu' in df_prep.columns:
+                    df_prep['Follow_Up_Years'] = (df_prep['end_fu'] - df_prep['time1']).dt.days / 365.25
+                
+                # Compute weights
+                df_weighted = density_ratio_weighting(df_prep)
+                
+                # Evaluate CHADS-VASc with and without weights
+                results = evaluate_chadsvasc(df_weighted)
+                
+                # Collect metadata
+                try:
+                    data_path = get_data_path() / data_file
+                    data_file_creation_date = datetime.fromtimestamp(os.stat(data_path).st_mtime).strftime("%Y %b %d %H:%M")
+                except:
+                    data_file_creation_date = "unknown"
+                
+                metadata = {
+                    "data_file_name": data_file,
+                    "data_file_creation_date": data_file_creation_date,
+                    "analysis_run_date": datetime.now().strftime("%Y %b %d %H:%M"),
+                    "num_patients": len(df_weighted),
+                    "analysis_type": "density_ratio_reweighting_subgroup",
+                    "subgroup": str(subgroup),
+                    "subgroup_column": subgroup_col,
+                    "effective_sample_size": float((df_weighted['weight'].sum() ** 2) / (df_weighted['weight'] ** 2).sum()),
+                    "results_directory": str(subgroup_dir),
+                    "original_auc": results['original_auc'],
+                    "weighted_auc": results['weighted_auc'],
+                    "dataset_version": "250623"
+                }
+                
+                # Save results with metadata
+                save_path = subgroup_dir / f'density_ratio_weighted_rates_{subgroup_name_clean}.png'
+                plot_results(results, save_path, metadata)
+                
+                # Save weight distribution plot with metadata
+                weight_plot_path = subgroup_dir / f'density_ratio_weight_distribution_{subgroup_name_clean}.png'
+                plot_weight_distribution(df_weighted, weight_plot_path, metadata)
+                
+                # Save results to markdown
+                results_markdown_path = subgroup_dir / f'density_ratio_results_{subgroup_name_clean}.md'
+                save_results_to_markdown(results, df_weighted, results_markdown_path, metadata)
+                
+                # Store results
+                subgroup_results[subgroup] = {
+                    'results': results,
+                    'df_weighted': df_weighted,
+                    'metadata': metadata,
+                    'subgroup_dir': subgroup_dir
+                }
+                
+                print(f"Subgroup '{subgroup}' analysis completed. Results saved to {subgroup_dir}")
+                
+            finally:
+                # Restore original results directory
+                globals()['results_dir'] = original_results_dir
+        
+        # Generate comparison report
+        if len(subgroup_results) > 0:
+            generate_subgroup_comparison_report(subgroup_results, subgroup_results_dir, subgroup_col)
+        
+        print(f"\nSubgroup analysis completed. Results saved to {subgroup_results_dir}")
+        return subgroup_results
+        
+    except Exception as e:
+        print(f"Error in subgroup analysis: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+def generate_subgroup_comparison_report(subgroup_results, output_dir, subgroup_col):
+    """Generate a comparison report across all subgroups"""
+    try:
+        from datetime import datetime
+        import json
+        
+        comparison_file = output_dir / "subgroup_comparison_report.md"
+        
+        with open(comparison_file, 'w') as f:
+            f.write(f"# Subgroup Analysis Comparison Report\n\n")
+            f.write(f"**Analysis Date:** {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+            f.write(f"**Subgroup Column:** {subgroup_col}\n")
+            f.write(f"**Number of Subgroups:** {len(subgroup_results)}\n\n")
+            
+            # Summary table
+            f.write("## Summary Comparison\n\n")
+            f.write("| Subgroup | N Patients | Original AUC | Weighted AUC | AUC Improvement | Effective Sample Size | ESS % |\n")
+            f.write("|----------|------------|--------------|--------------|-----------------|----------------------|-------|\n")
+            
+            for subgroup, data in subgroup_results.items():
+                metadata = data['metadata']
+                results = data['results']
+                n_patients = metadata['num_patients']
+                orig_auc = results['original_auc']
+                weighted_auc = results['weighted_auc']
+                auc_improvement = weighted_auc - orig_auc
+                ess = metadata['effective_sample_size']
+                ess_pct = (ess / n_patients) * 100
+                
+                f.write(f"| {subgroup} | {n_patients} | {orig_auc:.3f} | {weighted_auc:.3f} | {auc_improvement:+.3f} | {ess:.0f} | {ess_pct:.1f}% |\n")
+            
+            # Detailed results for each subgroup
+            f.write("\n## Detailed Results by Subgroup\n\n")
+            
+            for subgroup, data in subgroup_results.items():
+                results = data['results']
+                metadata = data['metadata']
+                
+                f.write(f"### {subgroup}\n\n")
+                f.write(f"- **Patients:** {metadata['num_patients']}\n")
+                f.write(f"- **Original AUC:** {results['original_auc']:.3f}\n")
+                f.write(f"- **Weighted AUC:** {results['weighted_auc']:.3f}\n")
+                f.write(f"- **AUC Improvement:** {results['weighted_auc'] - results['original_auc']:+.3f}\n")
+                f.write(f"- **Effective Sample Size:** {metadata['effective_sample_size']:.0f} ({metadata['effective_sample_size']/metadata['num_patients']*100:.1f}%)\n\n")
+                
+                # Stroke rates table for this subgroup
+                f.write("#### Stroke Rates by CHADS-VASc Score\n\n")
+                f.write("| CHADS-VASc | Lip et al. Rate | Observed Rate | Weighted Rate |\n")
+                f.write("|------------|-----------------|---------------|---------------|\n")
+                
+                for score in sorted(results['original_rates'].keys()):
+                    lip = results['lip_original_rates'].get(score, "N/A")
+                    orig = results['original_rates'][score]['rate']
+                    weighted = results['weighted_rates'][score]['rate']
+                    f.write(f"| {score} | {lip} | {orig:.2f} | {weighted:.2f} |\n")
+                
+                f.write(f"\n**Figures:** See `{data['subgroup_dir'].name}/` directory\n\n")
+        
+        print(f"Comparison report saved to {comparison_file}")
+        
+    except Exception as e:
+        print(f"Error generating comparison report: {e}")
 
 def perform_reweighting_analysis(df=None):
     """
