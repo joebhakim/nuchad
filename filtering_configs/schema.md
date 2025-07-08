@@ -24,7 +24,6 @@ Each filtering configuration is a JSON file with the following structure:
   },
   "metadata": {
     "created_date": "YYYY-MM-DD",
-    "author": "Creator name",
     "use_case": "Primary intended use case",
     "notes": "Additional notes"
   }

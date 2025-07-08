@@ -1,0 +1,23 @@
+{
+  "name": "Population-based AF Analysis (New Dataset - Comparable)",
+  "description": "Population-based AF patients with 1-year stroke prediction outcome to match original dataset analysis. Includes patients with definitive 1-year outcomes: stroke_1Y=1 (stroke within 1Y) vs stroke_1Y=2 (no stroke within 1Y).",
+  "dataset_compatibility": ["new"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": false,
+    "af_before_time1": true,
+    "min_follow_up_days": 365,
+    "stroke_window_days": 365,
+    "stroke_outcome_filter": {
+      "enabled": true,
+      "include_values": [1, 2],
+      "exclude_pre_af_strokes": true
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "Apples-to-apples comparison with original dataset for 1-year stroke risk prediction",
+    "notes": "This configuration creates a comparable population to the original dataset by focusing on 1-year stroke prediction. Includes only patients with definitive 1-year outcomes: stroke_1Y=1 (stroke within 1Y) vs stroke_1Y=2 (no stroke within 1Y). Excludes stroke_1Y=3 (stroke after 1Y) and stroke_1Y=4 (pre-AF strokes) for clean comparison."
+  }
+}
