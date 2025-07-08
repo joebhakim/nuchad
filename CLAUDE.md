@@ -1,0 +1,164 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+This is a CHADS-VASc analysis package for stroke risk prediction in atrial fibrillation (AF) patients. The package performs transportability analysis comparing stroke rates between the current dataset and the original Lip et al. cohort, using density ratio reweighting and model comparison techniques.
+
+## Build and Development Commands
+
+### Installation
+```bash
+# Install the package in development mode
+uv add -e .
+
+# Install with pip (fallback)
+pip install -e .
+```
+
+### Testing
+```bash
+# Run tests using pytest
+pytest -xvs src/tests/
+
+# Run tests using the provided shell script
+./run_tests.sh
+```
+
+### Running Analysis
+
+#### Master Script (all analyses)
+```bash
+# Run all three key analyses (generates main figures)
+python run_all_analyses.py
+```
+
+#### Individual Scripts (preferred approach)
+```bash
+# Run individual analyses via dedicated scripts
+uv run make_table1                     # Patient characteristics
+uv run make_table2                     # Stroke rates by CHADS-VASc
+uv run make_table1_stratified          # Stratified patient characteristics
+uv run make_table2_stratified          # Stratified stroke rates
+uv run run_eda                         # EDA and validation
+uv run visualize_followup              # Follow-up visualization
+uv run density_reweighting             # Density ratio reweighting
+uv run model_comparison                # Model comparison
+uv run filter_patients                 # Patient filtering report (with options)
+```
+
+#### Legacy CLI (still available)
+```bash
+# Run individual analyses via CLI
+python -m nuchad --task eda                    # EDA and validation
+python -m nuchad --task table1                 # Patient characteristics
+python -m nuchad --task table2                 # Stroke rates by CHADS-VASc
+python -m nuchad --task table1_stratified      # Stratified characteristics
+python -m nuchad --task table2_stratified      # Stratified stroke rates
+python -m nuchad --task visualize              # Follow-up visualization
+python -m nuchad --task reweight               # Density ratio reweighting
+python -m nuchad --task filter                 # Patient filtering report
+python -m nuchad --task compare                # Model comparison
+```
+
+### Data Requirements
+- The package expects `data/random_nuchad.csv` to exist
+- Tests will be skipped if this file is not available
+- The test script (`run_tests.sh`) will create necessary directories
+
+## Code Architecture
+
+### Package Structure
+```
+src/
+├── nuchad/                  # Main package
+│   ├── __init__.py              # Package entry point
+│   ├── __main__.py              # CLI interface with argparse
+│   ├── analysis/                # Core analysis modules
+│   │   ├── eda.py              # Data loading, CHADS-VASc calculation, validation
+│   │   ├── table1.py           # Patient characteristics table
+│   │   ├── table2.py           # Stroke rates by CHADS-VASc score
+│   │   ├── table1_stratified.py # Stratified patient characteristics
+│   │   ├── table2_stratified.py # Stratified stroke rates
+│   │   ├── density_ratio_reweighting.py # Transportability analysis
+│   │   └── model_comparison.py # Model performance comparison
+│   ├── data_processing/
+│   │   └── eligibility_filters.py # Patient filtering utilities
+│   ├── utils/
+│   │   └── paths_data.py       # Path management and data access
+│   └── visualization/
+│       └── visualize_end_fu.py # Follow-up time visualization
+└── scripts/                 # Individual analysis scripts
+    ├── __init__.py
+    ├── make_table1.py           # Generate Table 1
+    ├── make_table2.py           # Generate Table 2
+    ├── make_table1_stratified.py # Generate stratified Table 1
+    ├── make_table2_stratified.py # Generate stratified Table 2
+    ├── run_eda.py               # Run EDA and validation
+    ├── visualize_followup.py    # Generate follow-up visualization
+    ├── density_reweighting.py   # Perform density ratio reweighting
+    ├── model_comparison.py      # Perform model comparison
+    └── filter_patients.py       # Generate patient filtering report
+```
+
+### Key Components
+
+**Data Loading and Processing (`eda.py`)**:
+- `get_df()`: Loads and preprocesses the main dataset from CSV
+- `calculate_chadsvasc()`: Calculates CHADS-VASc scores for patients
+- `validate_chadsvasc()`: Validates scores against original Lip et al. cohort
+- Handles date parsing and patient ID indexing
+
+**Patient Filtering (`eligibility_filters.py`)**:
+- `filter_eligible_patients()`: Applies multiple filtering criteria with detailed tracking
+- `generate_filter_report()`: Creates markdown reports of filtering steps
+- Supports customizable criteria (AF diagnosis, follow-up requirements, etc.)
+
+**Analysis Workflow**:
+1. **EDA**: Load data, calculate CHADS-VASc scores, compare to original cohort
+2. **Tables**: Generate patient characteristics and stroke rate tables
+3. **Reweighting**: Apply density ratio weights for transportability
+4. **Comparison**: Compare model performance vs. CHADS-VASc scores
+
+**Path Management (`utils/paths_data.py`)**:
+- `get_project_root()`: Determines project root directory
+- `get_data_file()`: Accesses data files with fallback handling
+- `get_results_dir()`: Manages results directory creation
+
+### Key Design Patterns
+
+**Modular Analysis**: Each analysis task is in its own module with clear entry points
+
+**Flexible CLI**: The `__main__.py` provides both CLI access and programmatic API usage
+
+**Path Abstraction**: All file access goes through utility functions for portability
+
+**Filter Tracking**: Patient filtering includes detailed statistics and reporting for reproducibility
+
+**Output Organization**: All results saved to `results/` directory with consistent naming
+
+### Testing Strategy
+
+- Tests are in `src/tests/test_analysis_scripts.py`
+- Tests verify data loading, analysis execution, and output file generation
+- Test outputs are prefixed with `test_` and cleaned up after completion
+- Tests require the `data/random_nuchad.csv` file to be present
+
+### Entry Points
+
+**Individual Scripts** (recommended): `uv run <script_name>` for each analysis phase
+**Master Script**: `python run_all_analyses.py` (runs all three key analyses)
+**Legacy CLI**: `python -m nuchad --task <task_name>`
+**API**: Import modules directly from `nuchad.analysis`, `nuchad.visualization`, etc.
+
+### Script Design Pattern
+
+Each script in the `scripts/` folder follows a consistent pattern:
+- Imports the necessary analysis modules from `nuchad.analysis`
+- Loads and filters data using standard utilities
+- Calls the appropriate analysis function
+- Provides clear console output about what was generated
+- Has a simple main() function that returns 0 on success
+
+The package is designed for both interactive analysis and automated pipeline execution, with comprehensive filtering, reporting, and visualization capabilities.

@@ -24,9 +24,18 @@ dependencies = [
 
 [project.scripts]
 nuchad = "nuchad:main"
+make_table1 = "scripts.make_table1:main"
+make_table2 = "scripts.make_table2:main"
+make_table1_stratified = "scripts.make_table1_stratified:main"
+make_table2_stratified = "scripts.make_table2_stratified:main"
+run_eda = "scripts.run_eda:main"
+visualize_followup = "scripts.visualize_followup:main"
+density_reweighting = "scripts.density_reweighting:main"
+model_comparison = "scripts.model_comparison:main"
+filter_patients = "scripts.filter_patients:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/nuchad"]
+packages = ["src/nuchad", "src/scripts"]
 include = ["data/*"]
 
 [tool.pytest.ini_options]
