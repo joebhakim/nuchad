@@ -6,28 +6,37 @@ from scipy.stats import poisson
 import os
 
 from nuchad.utils import get_data_file, get_results_dir
-from nuchad.data_processing.eligibility_filters import filter_eligible_patients as filter_eligible_patients_util
+from nuchad.data_processing.eligibility_filters import (
+    filter_eligible_patients as filter_eligible_patients_util,
+)
+
 
 def get_df():
     """Load and prepare the dataset."""
     # Load data using the data access module
-    with get_data_file('random_nuchad.csv') as data_path:
-        df = pd.read_csv(data_path).rename(columns={"patid": "patient_id"}).set_index("patient_id")
+    with get_data_file("random_nuchad.csv") as data_path:
+        df = (
+            pd.read_csv(data_path)
+            .rename(columns={"patid": "patient_id"})
+            .set_index("patient_id")
+        )
         df = df.drop(columns=["Unnamed: 0"])
 
         # Convert date columns to datetime objects
         df["time1"] = pd.to_datetime(df["time1"], format="%Y-%m-%d", errors="raise")
         df["time2"] = pd.to_datetime(df["time2"], format="%Y-%m-%d", errors="raise")
-        df["earliest_af_date"] = pd.to_datetime(df["earliest_af_date"], format="%d%b%Y", errors="raise")
-        df["earliest_stroke_date"] = pd.to_datetime(df["earliest_stroke_date"], format="%d%b%Y", errors="raise")
+        df["earliest_af_date"] = pd.to_datetime(
+            df["earliest_af_date"], format="%d%b%Y", errors="raise"
+        )
+        df["earliest_stroke_date"] = pd.to_datetime(
+            df["earliest_stroke_date"], format="%d%b%Y", errors="raise"
+        )
         df["end_fu"] = pd.to_datetime(df["end_fu"], format="%d%b%Y", errors="raise")
 
         return df
 
 
 ## Validating chadsvasc
-
-
 def calculate_chadsvasc(row):
     """Calculates the CHADS-VASc score for a single patient (row of a DataFrame)."""
     score = 0
@@ -53,10 +62,10 @@ def calculate_stroke_rate(group, total_patients, total_years, event_col="stroke_
     """Calculates the adjusted stroke rate per 100 patient-years."""
     if total_patients == 0 or pd.isna(total_years):  # Handle potential NaNs
         return 0
-    
+
     # Stroke_1Y is 1=Yes, 2=No
 
-    num_strokes = group[group[event_col]==1].shape[0]
+    num_strokes = group[group[event_col] == 1].shape[0]
 
     return (num_strokes / total_years) * 100
 
@@ -81,14 +90,14 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
 
     # For each chadsvasc level, calculate the rate of
 
-
     # Calculate follow-up time in years, time2_col should be end_fu not time2
     df["Follow_Up_Years"] = (
         (df[time2_col] - df[time1_col]) / np.timedelta64(1, "D") / 365.25
     )
-    
 
-    df['anticoag_binary'] = df['Anticoagulant'].apply(lambda x: 0 if x == 'No anticoagulant' else 1)
+    df["anticoag_binary"] = df["Anticoagulant"].apply(
+        lambda x: 0 if x == "No anticoagulant" else 1
+    )
     # Calculate the rate of Anticoagulant use for each chadsvasc level
     anticoagulant_rates = df.groupby("CHADS-Vasc").agg(
         {
@@ -160,12 +169,12 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
     original_rates_ci_upper = {score: np.nan for score in original_rates}
 
     results_df["Original Stroke Rate"] = results_df["CHADS-Vasc"].map(original_rates)
-    #results_df["Original CI Lower"] = results_df["CHADS-Vasc"].map(
+    # results_df["Original CI Lower"] = results_df["CHADS-Vasc"].map(
     #    original_rates_ci_lower
-    #)
-    #results_df["Original CI Upper"] = results_df["CHADS-Vasc"].map(
+    # )
+    # results_df["Original CI Upper"] = results_df["CHADS-Vasc"].map(
     #    original_rates_ci_upper
-    #)
+    # )
 
     results_df["Original Rate Within CI"] = (
         results_df["Original Stroke Rate"] >= results_df["95% CI Lower"]
@@ -189,20 +198,18 @@ def validate_chadsvasc(df, time1_col, time2_col, stroke_event_col="stroke_1Y"):
 
 
 def filter_patients_for_analysis(
-    df: pd.DataFrame,
-    start_time_col: str = "time1",
-    end_time_col: str = "end_fu"
+    df: pd.DataFrame, start_time_col: str = "time1", end_time_col: str = "end_fu"
 ) -> pd.DataFrame:
     """
     Filter patients for analysis using standard criteria.
-    
+
     This is a wrapper around the filter_eligible_patients function in data_processing.eligibility_filters
-    
+
     Args:
         df: DataFrame with patient data
         start_time_col: Column name for start of observation
         end_time_col: Column name for end of observation
-        
+
     Returns:
         Filtered DataFrame with only eligible patients
     """
@@ -214,13 +221,12 @@ def filter_patients_for_analysis(
         require_stroke=False,
         af_before_time1=True,
         min_follow_up_days=365,
-        stroke_window_days=365
+        stroke_window_days=365,
     )
     return filtered_df
 
 
 def more_checking(df):
-
     df_check = df.copy()
 
     df_check["earliest_stroke_date"] = pd.to_datetime(
@@ -272,7 +278,6 @@ def plot_already_results():
         8: 14.1422,
         9: 25.9885,
     }
-    
 
     original_rates = {
         0: 0.2,
@@ -289,11 +294,21 @@ def plot_already_results():
 
     # Plot observed rates vs original rates
     plt.figure(figsize=(10, 6))
-    plt.plot(list(observed_rates.keys()), list(observed_rates.values()), label='Observed Rates', marker='o')
-    plt.plot(list(original_rates.keys()), list(original_rates.values()), label='Original Rates', marker='x')
-    plt.xlabel('CHADS-VASc Score')
-    plt.ylabel('Stroke Rate')
-    plt.title('Observed vs Original Stroke Rates')
+    plt.plot(
+        list(observed_rates.keys()),
+        list(observed_rates.values()),
+        label="Observed Rates",
+        marker="o",
+    )
+    plt.plot(
+        list(original_rates.keys()),
+        list(original_rates.values()),
+        label="Original Rates",
+        marker="x",
+    )
+    plt.xlabel("CHADS-VASc Score")
+    plt.ylabel("Stroke Rate")
+    plt.title("Observed vs Original Stroke Rates")
 
     # Add confidence intervals
     for i in range(len(observed_rates)):
@@ -301,33 +316,36 @@ def plot_already_results():
             [i, i],
             observed_rates_ci_lower[i],
             observed_rates_ci_upper[i],
-            color='gray',
-            alpha=0.8
+            color="gray",
+            alpha=0.8,
         )
-
 
     plt.legend()
     plt.tight_layout()
     # Save to results directory
     results_dir = get_results_dir()
-    plt.savefig(results_dir / 'observed_vs_original_stroke_rates.png', dpi=300)
+    plt.savefig(results_dir / "observed_vs_original_stroke_rates.png", dpi=300)
     plt.show()
 
 
 if __name__ == "__main__":
     df = get_df()
 
-    #more_checking(df)
+    # more_checking(df)
 
     eligible_patients_df = filter_patients_for_analysis(df)
 
-    results_df = validate_chadsvasc(eligible_patients_df, "time1", "end_fu", "stroke_1Y")
+    results_df = validate_chadsvasc(
+        eligible_patients_df, "time1", "end_fu", "stroke_1Y"
+    )
 
     # save results_df to markdown in results directory
     results_dir = get_results_dir()
-    results_df.to_markdown(results_dir / "results_df.md", numalign="left", stralign="left")
+    results_df.to_markdown(
+        results_dir / "results_df.md", numalign="left", stralign="left"
+    )
 
     print(results_df.head().to_markdown(index=False, numalign="left", stralign="left"))
-    
+
     # Generate and save the plot
-    plot_already_results() 
+    plot_already_results()

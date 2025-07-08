@@ -160,6 +160,55 @@ The package expects a patient-level dataset containing AF patients with the foll
   - `vasc_dis_mi_pad`: Vascular disease (1=Yes, 0=No)
   - Other clinical variables (BMI, frailty score, cholesterol, etc.)
 
+## Figure Generation
+
+The package generates several types of visualizations and figures. Here are the main entry points:
+
+### Command Line Interface
+
+```bash
+# Generate follow-up time distribution histogram
+python -m nuchad --task visualize
+
+# Generate density ratio reweighting plots (creates multiple figures)
+python -m nuchad --task reweight
+```
+
+### Python API
+
+```python
+from nuchad.visualization import visualize_end_fu
+from nuchad.analysis import density_ratio_reweighting
+
+# Generate follow-up time distribution
+df = eda.get_df()
+visualize_end_fu.plot_end_fu_distribution(df)
+
+# Generate density ratio reweighting analysis and plots
+density_ratio_reweighting.perform_reweighting_analysis(df)
+```
+
+### Direct Module Execution
+
+```bash
+# Run visualization module directly
+python -m nuchad.visualization.visualize_end_fu
+
+# Run density ratio analysis directly
+python -m nuchad.analysis.density_ratio_reweighting
+```
+
+### Generated Figures
+
+The following figure files are created in the `results/` directory:
+
+- **`end_fu_distribution.png`**: Histogram showing the distribution of patient follow-up times in years
+- **`density_ratio_weighted_rates.png`**: Line plot comparing stroke rates by CHADS-VASc score between:
+  - Original Lip et al. cohort rates
+  - Observed rates in the current dataset
+  - Weighted rates after density ratio reweighting
+- **`density_ratio_weight_distribution.png`**: Histogram showing the distribution of density ratio weights applied to patients
+
 ## Output Files
 
 All analysis tasks save their outputs to the `results/` directory:
