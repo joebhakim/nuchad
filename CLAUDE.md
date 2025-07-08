@@ -42,6 +42,8 @@ uv run make_table2                     # Stroke rates by CHADS-VASc
 uv run make_table1_stratified          # Stratified patient characteristics
 uv run make_table2_stratified          # Stratified stroke rates
 uv run run_eda                         # EDA and validation
+uv run run_survival_eda                # Survival-focused EDA with Kaplan-Meier curves (all datasets)
+uv run run_survival_eda -d random_nuchad.csv  # Run on specific dataset
 uv run visualize_followup              # Follow-up visualization
 uv run density_reweighting             # Density ratio reweighting
 uv run model_comparison                # Model comparison
@@ -96,6 +98,7 @@ src/
     ├── make_table1_stratified.py # Generate stratified Table 1
     ├── make_table2_stratified.py # Generate stratified Table 2
     ├── run_eda.py               # Run EDA and validation
+    ├── run_survival_eda.py      # Run survival-focused EDA with Kaplan-Meier curves
     ├── visualize_followup.py    # Generate follow-up visualization
     ├── density_reweighting.py   # Perform density ratio reweighting
     ├── model_comparison.py      # Perform model comparison
@@ -108,6 +111,8 @@ src/
 - `get_df()`: Loads and preprocesses the main dataset from CSV
 - `calculate_chadsvasc()`: Calculates CHADS-VASc scores for patients
 - `validate_chadsvasc()`: Validates scores against original Lip et al. cohort
+- `run_survival_eda()`: Generates Kaplan-Meier curves, timeline visualizations, and survival statistics with embedded metadata
+- `run_survival_eda_all_datasets()`: Runs survival EDA on all available datasets with data-specific output directories
 - Handles date parsing and patient ID indexing
 
 **Patient Filtering (`eligibility_filters.py`)**:
@@ -137,6 +142,14 @@ src/
 **Filter Tracking**: Patient filtering includes detailed statistics and reporting for reproducibility
 
 **Output Organization**: All results saved to `results/` directory with consistent naming
+
+**Survival EDA Features**: 
+- Creates dataset-specific subdirectories (`results/survival_eda_<dataset_name>/`)
+- Embeds rich metadata in HTML files including data source and filtering steps
+- Supports both pre-filter and post-filter analysis
+- Generates Kaplan-Meier curves stratified by CHADS-VASc risk groups
+- Creates interactive timeline visualizations with patient sampling
+- Outputs JSON-formatted filtering metadata for reproducibility
 
 ### Testing Strategy
 

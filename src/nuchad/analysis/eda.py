@@ -13,16 +13,56 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.express as px
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 from datetime import datetime
 import matplotlib.pyplot as plt
 import seaborn as sns
 from lifelines import KaplanMeierFitter
 import warnings
+import json
+from pathlib import Path
 warnings.filterwarnings('ignore')
 
 from nuchad.utils.paths_data import get_data_file, get_results_dir
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
+
+
+def create_metadata_header(data_file: str, filter_stats: Optional[Dict] = None, 
+                          analysis_type: str = "Survival EDA") -> str:
+    """Create HTML metadata header for inclusion in visualizations.
+    
+    Args:
+        data_file: Name of the data file used
+        filter_stats: Dictionary containing filtering statistics from filter_eligible_patients
+        analysis_type: Type of analysis being performed
+    
+    Returns:
+        HTML string with metadata information
+    """
+    metadata: Dict[str, Any] = {
+        "analysis_type": analysis_type,
+        "data_file": data_file,
+        "generated_at": datetime.now().isoformat(),
+    }
+    
+    # Add filtering information if provided
+    if filter_stats:
+        metadata["filtering"] = {
+            "total_patients_initial": filter_stats.get("total", "Unknown"),
+            "filter_steps": filter_stats.get("steps", []),
+            "filter_descriptions": filter_stats.get("filter_descriptions", {}),
+            "final_count": filter_stats.get("steps", [{}])[-1].get("remaining", "Unknown") if filter_stats.get("steps") else filter_stats.get("total", "Unknown")
+        }
+    
+    # Create HTML metadata div
+    metadata_html = f"""
+    <div style="background-color: #f8f9fa; padding: 15px; margin: 10px; border-radius: 5px; font-family: monospace;">
+        <h4 style="margin-top: 0; color: #495057;">Analysis Metadata</h4>
+        <pre style="margin: 0; white-space: pre-wrap; font-size: 12px;">{json.dumps(metadata, indent=2)}</pre>
+    </div>
+    """
+    
+    return metadata_html
 
 
 def get_df(data_file: str = "random_nuchad.csv") -> pd.DataFrame:
@@ -100,7 +140,8 @@ def prepare_survival_data(df: pd.DataFrame) -> pd.DataFrame:
     return survival_df
 
 
-def create_kaplan_meier_curves(df: pd.DataFrame) -> go.Figure:
+def create_kaplan_meier_curves(df: pd.DataFrame, data_file: str = "unknown", 
+                              filter_stats: Optional[Dict] = None) -> go.Figure:
     """Create Kaplan-Meier survival curves."""
     survival_df = prepare_survival_data(df)
     
@@ -159,10 +200,27 @@ def create_kaplan_meier_curves(df: pd.DataFrame) -> go.Figure:
         height=500
     )
     
+    # Add metadata as annotation
+    metadata_text = f"Data: {data_file}"
+    if filter_stats and filter_stats.get("steps"):
+        final_n = filter_stats["steps"][-1]["remaining"]
+        metadata_text += f" | Filtered: {final_n:,} patients"
+    
+    fig.add_annotation(
+        text=metadata_text,
+        xref="paper", yref="paper",
+        x=0.02, y=0.98,
+        showarrow=False,
+        font=dict(size=10, color="gray"),
+        align="left"
+    )
+    
     return fig
 
 
-def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100) -> go.Figure:
+def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100, 
+                                 data_file: str = "unknown", 
+                                 filter_stats: Optional[Dict] = None) -> go.Figure:
     """Create horizontal bar chart timeline visualization."""
     # Sample patients for visualization
     sample_df = df.sample(n=min(n_sample, len(df)), random_state=42).copy()
@@ -280,9 +338,14 @@ def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100) -> go.F
             row=1, col=3
         )
     
-    # Update layout
+    # Update layout with metadata
+    title = f'Patient Timeline Analysis (n={len(sample_df)} sampled patients)'
+    if filter_stats and filter_stats.get("steps"):
+        total_n = filter_stats["steps"][-1]["remaining"]
+        title += f' from {total_n:,} total after filtering'
+    
     fig.update_layout(
-        title=f'Patient Timeline Analysis (n={len(sample_df)} sampled patients)',
+        title=title,
         height=800,
         showlegend=False
     )
@@ -292,6 +355,17 @@ def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100) -> go.F
     fig.update_yaxes(title_text="Patient ID", row=1, col=1)
     fig.update_yaxes(showticklabels=False, row=1, col=2)
     fig.update_yaxes(showticklabels=False, row=1, col=3)
+    
+    # Add metadata annotation
+    metadata_text = f"Data: {data_file}"
+    fig.add_annotation(
+        text=metadata_text,
+        xref="paper", yref="paper",
+        x=0.02, y=0.98,
+        showarrow=False,
+        font=dict(size=10, color="gray"),
+        align="left"
+    )
     
     return fig
 
@@ -315,45 +389,73 @@ def create_survival_statistics_table(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(list(stats.items()), columns=['Statistic', 'Value'])
 
 
-def run_survival_eda(pre_filter: bool = True, post_filter: bool = True, 
-                     sample_size: int = 100) -> None:
+def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = True, 
+                     post_filter: bool = True, sample_size: int = 100) -> None:
     """
     Run comprehensive survival-focused EDA.
     
     Args:
+        data_file: Name of the data file to analyze
         pre_filter: Generate visualizations for pre-filtered data
         post_filter: Generate visualizations for post-filtered data
         sample_size: Number of patients to sample for timeline visualization
     """
     results_dir = get_results_dir()
     
+    # Create data-specific subdirectory
+    data_name = Path(data_file).stem  # Remove .csv extension
+    data_results_dir = results_dir / f"survival_eda_{data_name}"
+    data_results_dir.mkdir(exist_ok=True)
+    
     # Load data
-    df = get_df()
-    print(f"Loaded {len(df)} patients")
+    df = get_df(data_file)
+    print(f"Loaded {len(df)} patients from {data_file}")
     
     # Pre-filter analysis
     if pre_filter:
-        print("\n=== PRE-FILTER ANALYSIS ===")
+        print(f"\n=== PRE-FILTER ANALYSIS ({data_file}) ===")
         
         # Create survival statistics
         pre_stats = create_survival_statistics_table(df)
-        pre_stats.to_csv(results_dir / "pre_filter_survival_stats.csv", index=False)
+        pre_stats.to_csv(data_results_dir / f"pre_filter_survival_stats_{data_name}.csv", index=False)
         print("Pre-filter survival statistics:")
         print(pre_stats.to_string(index=False))
         
         # Create Kaplan-Meier curves
-        km_fig = create_kaplan_meier_curves(df)
-        km_fig.write_html(results_dir / "pre_filter_kaplan_meier.html")
-        print(f"Saved Kaplan-Meier curves to {results_dir / 'pre_filter_kaplan_meier.html'}")
+        km_fig = create_kaplan_meier_curves(df, data_file)
+        
+        # Add metadata to HTML
+        metadata_html = create_metadata_header(data_file, analysis_type="Pre-filter Kaplan-Meier")
+        km_html_path = data_results_dir / f"pre_filter_kaplan_meier_{data_name}.html"
+        km_fig.write_html(km_html_path)
+        
+        # Append metadata to HTML file
+        with open(km_html_path, 'r') as f:
+            content = f.read()
+        content = content.replace('<body>', f'<body>{metadata_html}')
+        with open(km_html_path, 'w') as f:
+            f.write(content)
+        
+        print(f"Saved Kaplan-Meier curves to {km_html_path}")
         
         # Create timeline visualization
-        timeline_fig = create_timeline_visualization(df, sample_size)
-        timeline_fig.write_html(results_dir / "pre_filter_timeline.html")
-        print(f"Saved timeline visualization to {results_dir / 'pre_filter_timeline.html'}")
+        timeline_fig = create_timeline_visualization(df, sample_size, data_file)
+        
+        timeline_html_path = data_results_dir / f"pre_filter_timeline_{data_name}.html"
+        timeline_fig.write_html(timeline_html_path)
+        
+        # Add metadata to timeline HTML
+        with open(timeline_html_path, 'r') as f:
+            content = f.read()
+        content = content.replace('<body>', f'<body>{create_metadata_header(data_file, analysis_type="Pre-filter Timeline")}')
+        with open(timeline_html_path, 'w') as f:
+            f.write(content)
+        
+        print(f"Saved timeline visualization to {timeline_html_path}")
     
     # Post-filter analysis
     if post_filter:
-        print("\n=== POST-FILTER ANALYSIS ===")
+        print(f"\n=== POST-FILTER ANALYSIS ({data_file}) ===")
         
         # Filter patients
         filtered_df, filter_stats = filter_eligible_patients(
@@ -370,21 +472,57 @@ def run_survival_eda(pre_filter: bool = True, post_filter: bool = True,
         
         # Create survival statistics
         post_stats = create_survival_statistics_table(filtered_df)
-        post_stats.to_csv(results_dir / "post_filter_survival_stats.csv", index=False)
+        post_stats.to_csv(data_results_dir / f"post_filter_survival_stats_{data_name}.csv", index=False)
         print("Post-filter survival statistics:")
         print(post_stats.to_string(index=False))
         
         # Create Kaplan-Meier curves
-        km_fig = create_kaplan_meier_curves(filtered_df)
-        km_fig.write_html(results_dir / "post_filter_kaplan_meier.html")
-        print(f"Saved Kaplan-Meier curves to {results_dir / 'post_filter_kaplan_meier.html'}")
+        km_fig = create_kaplan_meier_curves(filtered_df, data_file, filter_stats)
+        
+        km_html_path = data_results_dir / f"post_filter_kaplan_meier_{data_name}.html"
+        km_fig.write_html(km_html_path)
+        
+        # Add metadata to HTML
+        with open(km_html_path, 'r') as f:
+            content = f.read()
+        content = content.replace('<body>', f'<body>{create_metadata_header(data_file, filter_stats, "Post-filter Kaplan-Meier")}')
+        with open(km_html_path, 'w') as f:
+            f.write(content)
+        
+        print(f"Saved Kaplan-Meier curves to {km_html_path}")
         
         # Create timeline visualization
-        timeline_fig = create_timeline_visualization(filtered_df, sample_size)
-        timeline_fig.write_html(results_dir / "post_filter_timeline.html")
-        print(f"Saved timeline visualization to {results_dir / 'post_filter_timeline.html'}")
+        timeline_fig = create_timeline_visualization(filtered_df, sample_size, data_file, filter_stats)
+        
+        timeline_html_path = data_results_dir / f"post_filter_timeline_{data_name}.html"
+        timeline_fig.write_html(timeline_html_path)
+        
+        # Add metadata to timeline HTML
+        with open(timeline_html_path, 'r') as f:
+            content = f.read()
+        content = content.replace('<body>', f'<body>{create_metadata_header(data_file, filter_stats, "Post-filter Timeline")}')
+        with open(timeline_html_path, 'w') as f:
+            f.write(content)
+        
+        print(f"Saved timeline visualization to {timeline_html_path}")
     
-    print(f"\nAll outputs saved to {results_dir}")
+    print(f"\nAll outputs saved to {data_results_dir}")
+
+
+def run_survival_eda_all_datasets(pre_filter: bool = True, post_filter: bool = True, 
+                                  sample_size: int = 100) -> None:
+    """Run survival EDA on all available datasets."""
+    
+    # Find all data files
+    data_files = ["random_nuchad.csv", "random_nuchad_250623.csv"]
+    
+    for data_file in data_files:
+        try:
+            run_survival_eda(data_file, pre_filter, post_filter, sample_size)
+        except FileNotFoundError:
+            print(f"Skipping {data_file} - file not found")
+        except Exception as e:
+            print(f"Error processing {data_file}: {e}")
 
 
 if __name__ == "__main__":
