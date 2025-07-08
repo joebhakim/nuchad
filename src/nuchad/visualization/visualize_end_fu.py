@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import os
 
 from nuchad.utils import get_results_dir
-from nuchad.analysis.eda_old import get_df
+from nuchad.utils import get_df
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 def plot_end_fu_distribution(df=None):

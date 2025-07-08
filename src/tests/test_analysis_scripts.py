@@ -155,7 +155,8 @@ def test_table1_stratified_module(eligible_data_frame):
     
     # Generate stratified table1 (function saves to results_dir/table1_stratified.md)
     if 'CHADS-Vasc' not in eligible_data_frame.columns:
-        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(eda_old.calculate_chadsvasc, axis=1)
+        from nuchad.utils import calculate_chadsvasc
+        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(calculate_chadsvasc, axis=1)
         
     result_df = table1_stratified.generate_stratified_table1(eligible_data_frame)
     
@@ -203,7 +204,8 @@ def test_table2_stratified_module(eligible_data_frame):
     
     # Generate stratified table2
     if 'CHADS-Vasc' not in eligible_data_frame.columns:
-        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(eda_old.calculate_chadsvasc, axis=1)
+        from nuchad.utils import calculate_chadsvasc
+        eligible_data_frame['CHADS-Vasc'] = eligible_data_frame.apply(calculate_chadsvasc, axis=1)
         
     results = table2_stratified.generate_stratified_table2(eligible_data_frame)
     

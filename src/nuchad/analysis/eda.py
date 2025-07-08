@@ -24,6 +24,7 @@ from pathlib import Path
 warnings.filterwarnings('ignore')
 
 from nuchad.utils.paths_data import get_data_file, get_results_dir
+from nuchad.utils import get_df
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 
@@ -65,55 +66,7 @@ def create_metadata_header(data_file: str, filter_stats: Optional[Dict] = None,
     return metadata_html
 
 
-def get_df(data_file: str = "random_nuchad.csv") -> pd.DataFrame:
-    """Load and prepare the dataset."""
-    with get_data_file(data_file) as data_path:
-        df = pd.read_csv(data_path)
-        
-        # Handle patid column if present
-        if 'patid' in df.columns:
-            df = df.rename(columns={"patid": "patient_id"}).set_index("patient_id")
-        
-        # Remove unnamed columns
-        if 'Unnamed: 0' in df.columns:
-            df = df.drop(columns=["Unnamed: 0"])
-
-        # Convert date columns to datetime objects
-        date_cols = ['time1', 'time2', 'earliest_af_date', 'earliest_stroke_date', 
-                     'earliest_tia_date', 'end_fu', 'first_OAC_date', 'first_antiplatelet_date']
-        
-        original_data = {}
-        for col in date_cols:
-            if col in df.columns:
-                original_data[col] = df[col].copy()
-        
-        for col in date_cols:
-            if col in df.columns:
-                if col in ['time1', 'time2']:
-                    df[col] = pd.to_datetime(df[col], format="%Y-%m-%d", errors="coerce")
-                else:
-                    # Try multiple date formats
-                    df[col] = pd.to_datetime(original_data[col], format="%d%b%Y", errors="coerce")
-                    null_count = df[col].isnull().sum()
-                    
-                    if null_count > len(df) * 0.8:
-                        df[col] = pd.to_datetime(original_data[col], format="%d-%b-%y", errors="coerce")
-                        null_count = df[col].isnull().sum()
-                    
-                    if null_count > len(df) * 0.8:
-                        df[col] = pd.to_datetime(original_data[col], errors="coerce")
-
-        # Handle dataset compatibility
-        if 'time1' not in df.columns and 'earliest_af_date' in df.columns:
-            df['time1'] = df['earliest_af_date']
-            print("Created time1 from earliest_af_date")
-        
-        if 'time2' not in df.columns and 'end_fu' in df.columns:
-            if 'time1' in df.columns:
-                df['time2'] = df['time1'] + pd.Timedelta(days=90)
-                print("Created time2 as 3 months after time1")
-
-        return df
+# get_df function removed - now using canonical version from nuchad.utils
 
 
 def prepare_survival_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -146,17 +99,7 @@ def create_kaplan_meier_curves(df: pd.DataFrame, data_file: str = "unknown",
     survival_df = prepare_survival_data(df)
     
     # Calculate CHADS-VASc score for stratification
-    def calculate_chadsvasc(row):
-        score = 0
-        score += int(row.get("hf", 0))
-        score += int(row.get("hypertension", 0))
-        score += 2 * int(row.get("age", 0) >= 75)
-        score += int(65 <= row.get("age", 0) < 75)
-        score += int(row.get("diab", 0))
-        score += 2 * int(row.get("thrombo", 0) or row.get("HB_stroke_history", 0))
-        score += int(row.get("vasc_dis_mi_pad", 0))
-        score += int(row.get("gender", 1) != 1)
-        return score
+    from nuchad.utils import calculate_chadsvasc
     
     survival_df['chadsvasc'] = survival_df.apply(calculate_chadsvasc, axis=1)
     

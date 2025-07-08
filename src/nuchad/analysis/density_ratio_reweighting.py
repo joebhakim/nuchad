@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 import json
 
 from nuchad.utils import get_data_path, get_results_dir
-from nuchad.analysis.eda_old import get_df, calculate_chadsvasc
+from nuchad.utils import get_df as get_df_canonical, calculate_chadsvasc as calculate_chadsvasc_canonical
 from nuchad.data_processing.eligibility_filters import filter_eligible_patients
 
 def embed_png_metadata(png_path, metadata):
@@ -58,79 +58,19 @@ results_dir = get_results_dir()
 # Don't need to explicitly create it as get_results_dir() already does this
 
 def get_df(data_path=None):
-    """Load and prepare the dataset"""
+    """Load and prepare the dataset - delegates to canonical version"""
     if data_path is None:
-        data_path = str(get_data_path('random_nuchad.csv'))
-    
-    print(f"Loading data from: {data_path}")
-    df = pd.read_csv(data_path)
-    
-    if 'patid' in df.columns:
-        df = df.rename(columns={"patid": "patient_id"}).set_index("patient_id")
-    
-    if 'Unnamed: 0' in df.columns:
-        df = df.drop(columns=["Unnamed: 0"])
-
-    # Convert date columns to datetime - handle both old and new formats
-    date_cols = ['time1', 'time2', 'earliest_af_date', 'earliest_stroke_date', 'earliest_tia_date', 
-                 'end_fu', 'first_OAC_date', 'first_antiplatelet_date']
-    for col in date_cols:
-        if col in df.columns:
-            if col in ['time1', 'time2']:
-                df[col] = pd.to_datetime(df[col], format="%Y-%m-%d", errors='coerce')
-            else:
-                # Try multiple date formats for flexibility
-                # First try the old format
-                df[col] = pd.to_datetime(df[col], format="%d%b%Y", errors='coerce')
-                # If most are null, try the new format
-                if df[col].isnull().sum() > len(df) * 0.8:
-                    df[col] = pd.to_datetime(df[col], format="%d-%b-%y", errors='coerce')
-                # If still mostly null, fallback to automatic parsing
-                if df[col].isnull().sum() > len(df) * 0.8:
-                    df[col] = pd.to_datetime(df[col], errors='coerce')
-
-    # Handle dataset compatibility: create time1 and time2 equivalents for new dataset
-    if 'time1' not in df.columns and 'earliest_af_date' in df.columns:
-        # Use AF diagnosis date as time1 equivalent
-        df['time1'] = df['earliest_af_date']
-        print("Created time1 from earliest_af_date")
-    
-    if 'time2' not in df.columns and 'end_fu' in df.columns:
-        # For time2, we'll use a window after time1 (e.g., 3 months)
-        if 'time1' in df.columns:
-            df['time2'] = df['time1'] + pd.Timedelta(days=90)  # 3 months after AF diagnosis
-            print("Created time2 as 3 months after time1")
-
-    return df
+        # Use default behavior of canonical version
+        return get_df_canonical()
+    else:
+        # Extract filename from path if needed
+        import os
+        data_file = os.path.basename(data_path) if data_path else "random_nuchad.csv"
+        return get_df_canonical(data_file)
 
 def calculate_chadsvasc(row):
-    """Calculates the CHADS-VASc score for a single patient"""
-    score = 0
-    # Congestive heart failure
-    if 'hf' in row and pd.notna(row["hf"]):
-        score += int(row["hf"])
-    # Hypertension
-    if 'hypertension' in row and pd.notna(row["hypertension"]):
-        score += int(row["hypertension"])
-    # Age >= 75 (2 points)
-    if 'age' in row and pd.notna(row["age"]):
-        score += 2 * int(row["age"] >= 75)
-        # Age 65-74 (1 point)
-        score += int(65 <= row["age"] < 75)
-    # Diabetes mellitus
-    if 'diab' in row and pd.notna(row["diab"]):
-        score += int(row["diab"])
-    # Stroke/TIA/Thromboembolism (2 points)
-    if 'thrombo' in row and 'HB_stroke_history' in row:
-        if pd.notna(row["thrombo"]) and pd.notna(row["HB_stroke_history"]):
-            score += 2 * int(row["thrombo"] or row["HB_stroke_history"])
-    # Vascular disease
-    if 'vasc_dis_mi_pad' in row and pd.notna(row["vasc_dis_mi_pad"]):
-        score += int(row["vasc_dis_mi_pad"])
-    # Sex (Female)
-    if 'gender' in row and pd.notna(row["gender"]):
-        score += int(row["gender"] != 1)  # 1 = male, 2 = female
-    return score
+    """Calculates the CHADS-VASc score for a single patient - delegates to canonical version"""
+    return calculate_chadsvasc_canonical(row)
 
 def filter_eligible_patients_legacy(df):
     """
@@ -542,7 +482,7 @@ def perform_subgroup_analysis(data_file="random_nuchad_250623.csv", subgroup_col
         import os
         
         # Load the full dataset using the EDA module's get_df function
-        from nuchad.analysis.eda_old import get_df as get_df_eda
+        from nuchad.utils import get_df as get_df_eda
         df = get_df_eda(data_file)
         df, _ = filter_eligible_patients(df)
         
