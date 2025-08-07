@@ -61,14 +61,14 @@ def main():
         else:
             print(f"\nUsing filter configuration: {args.filter_config}")
     
-    pre_filter = not args.no_pre_filter
-    post_filter = not args.no_post_filter
+    no_pre_filter = not args.no_pre_filter
+    no_post_filter = not args.no_post_filter
     
     if args.all_datasets:
         print("\n=== Running analysis on ALL datasets ===")
         run_survival_eda_all_datasets(
-            pre_filter=pre_filter, 
-            post_filter=post_filter, 
+            no_pre_filter=no_pre_filter, 
+            no_post_filter=no_post_filter, 
             sample_size=args.sample_size,
             filter_config=args.filter_config
         )
@@ -76,20 +76,13 @@ def main():
         print(f"\n=== Running analysis on {args.data_file} ===")
         run_survival_eda(
             data_file=args.data_file, 
-            pre_filter=pre_filter, 
-            post_filter=post_filter, 
+            no_pre_filter=no_pre_filter, 
+            no_post_filter=no_post_filter, 
             sample_size=args.sample_size,
             filter_config=args.filter_config
         )
     else:
-        # Default behavior - run on all datasets
-        print("\n=== Running analysis on ALL datasets (default behavior) ===")
-        run_survival_eda_all_datasets(
-            pre_filter=pre_filter, 
-            post_filter=post_filter, 
-            sample_size=args.sample_size,
-            filter_config=args.filter_config
-        )
+        raise ValueError("No data file specified! Either use --all-datasets or --data-file <filename>")
     
     print("Survival EDA completed successfully!")
     return 0

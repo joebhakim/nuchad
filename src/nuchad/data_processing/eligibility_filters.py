@@ -195,6 +195,8 @@ def filter_eligible_patients(
             "percent_remaining": round(patients_after / filter_stats["total"] * 100, 1)
         })
     
+
+    # TODO: check if this is fucking borked
     # Apply stroke outcome filter if specified
     if stroke_outcome_filter and stroke_outcome_filter.get('enabled', False):
         include_values = stroke_outcome_filter.get('include_values', [1, 2])
