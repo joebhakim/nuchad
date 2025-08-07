@@ -37,8 +37,6 @@ Comparison of discrimination performance between:
 
 The UK-fitted model shows **improved discrimination** compared to the off-the-shelf CHADS-VAsC score (ΔAUC = +0.104).
 
-This demonstrates the potential benefit of local model calibration versus transported clinical scores.
-
 ## Figures
 
 ![ROC Comparison](model_comparison_roc.png)
