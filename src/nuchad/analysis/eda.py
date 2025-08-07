@@ -76,9 +76,9 @@ def prepare_survival_data(df: pd.DataFrame) -> pd.DataFrame:
     # Calculate survival time (time to event or censoring)
     survival_df['survival_time'] = (survival_df['end_fu'] - survival_df['time1']).dt.days
     
-    # Create event indicator (1 if stroke occurred, 0 if censored)
+    # Create event indicator (1 if stroke occurred (BUT ONLY AFTER TIME1), 0 if censored)
     survival_df['event'] = 0
-    stroke_mask = pd.notna(survival_df['earliest_stroke_date'])
+    stroke_mask = pd.notna(survival_df['earliest_stroke_date']) & (survival_df['earliest_stroke_date'] > survival_df['time1'])
     survival_df.loc[stroke_mask, 'event'] = 1
     
     # For patients with stroke, use time to stroke as survival time
@@ -87,9 +87,20 @@ def prepare_survival_data(df: pd.DataFrame) -> pd.DataFrame:
         survival_df.loc[stroke_mask, 'time1']
     ).dt.days
     
-    # Remove patients with negative or zero survival time
-    survival_df = survival_df[survival_df['survival_time'] > 0]
+    # No patients should have negative survival time since we .loc[stroke_mask, ...]
+    if survival_df[survival_df['survival_time'] < 0].shape[0] > 0:
+        print('Warning: Some patients have negative survival time')
+        print(survival_df[survival_df['survival_time'] < 0])
+        raise ValueError("Some patients have negative survival time")
     
+    # Some patients have 0 survival time: guess these people came in and WHOOPS they've had AF for a while
+    # This is credible, and we have to figure out what to do with these
+    #TODO: sensitivtiy analysis for this
+    if survival_df[survival_df['survival_time'] == 0].shape[0] > 0:
+        print('Warning: Some patients have 0 survival time, TODO sensitivity analysis')
+        print(survival_df[survival_df['survival_time'] == 0])
+    
+
     return survival_df
 
 
@@ -377,7 +388,7 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", no_pre_filter: bool =
     print(f"Loaded {len(df)} patients from {data_file}")
 
     # Check how many have missing stroke_1Y
-    print('Missing stroke_1Y' + len(df[df['stroke_1Y']]))
+    print('Missing stroke_1Y: ' + str(len(df[df['stroke_1Y'].isna()])))
     
     # Pre-filter analysis
     if no_pre_filter:

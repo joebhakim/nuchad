@@ -5,11 +5,26 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "km and timeline vis with args",
+            "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "km and timeline vis with args",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "src/scripts/run_survival_eda.py",
             "console": "integratedTerminal",
+            "args": [
+                "--data-file",
+                "random_nuchad_250623.csv",
+                "--filter-config",
+                "AF_FU365",
+                "--sample-size",
+                "100"
+            ]
         }
     ]
 }
