@@ -171,8 +171,6 @@ def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100,
     sample_df['patient_id'] = range(len(sample_df))
     
     # Create subplots: timeline + categorical + continuous
-    # Scale height to n_sample
-    height = 1000 + (n_sample * 10)
     fig = make_subplots(
         rows=1, cols=3,
         column_widths=[0.4, 0.3, 0.3],
@@ -199,7 +197,7 @@ def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100,
         colors = ['red','blue','green','purple','orange','brown','pink']
 
         for i, time_col_point in enumerate(time_columns_points):           
-            if pd.notna(patient[time_col_point]):
+            if time_col_point in patient and pd.notna(patient[time_col_point]):
                 fig.add_trace(
                     go.Scatter(
                         x=[patient[time_col_point]],
@@ -377,6 +375,9 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", no_pre_filter: bool =
     # Load data
     df = get_df(data_file)
     print(f"Loaded {len(df)} patients from {data_file}")
+
+    # Check how many have missing stroke_1Y
+    print('Missing stroke_1Y' + len(df[df['stroke_1Y']]))
     
     # Pre-filter analysis
     if no_pre_filter:

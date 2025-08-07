@@ -88,4 +88,5 @@ def main():
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    print('Warning: dont run this as a script unless debugging')
+    main()
