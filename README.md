@@ -172,7 +172,7 @@ The package expects a patient-level dataset containing AF patients with the foll
 - `earliest_stroke_date`: Date of stroke (if applicable)
 - `end_fu`: End of follow-up date
 - `end_fu_due_to_death`: Whether follow-up ended due to death
-- `stroke_1Y`: Stroke within 1 year (1=Yes, 2=No)
+- `stroke_1Y`: Depends on the dataset, see below (!)
 - `stroke_time`: Time to stroke (years)
 - `Anticoagulant`: Anticoagulation status
 - Risk factors:

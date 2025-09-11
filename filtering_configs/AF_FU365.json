@@ -1,0 +1,23 @@
+{
+    "name": "AF with 1-year follow-up (New Dataset)",
+    "description": "AF patients from new dataset",
+    "dataset_compatibility": ["new"],
+    "filters": {
+      "require_af": true,
+      "require_follow_up": true,
+      "require_stroke": false,
+      "af_before_time1": true,
+      "min_follow_up_days": 365,
+      "stroke_window_days": 365,
+      "stroke_outcome_filter": {
+        "enabled": false,
+        "include_values": [],
+        "exclude_pre_af_strokes": false
+      }
+    },
+    "metadata": {
+      "created_date": "2025-01-08",
+      "use_case": "AF, but DONT do any stroke filtering, this includes strokes before and after and whenever",
+      "notes": "Includes any combination of stroke_1Y values, (including missing values??)"
+    }
+  }

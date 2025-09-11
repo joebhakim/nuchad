@@ -280,7 +280,6 @@ def main():
     print("="*70)
     print(f"Analysis generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("\nPurpose: Prove stroke_1Y encoding differences between datasets")
-    print("Author: Analysis performed by Claude AI")
     print("="*70)
     
     # Load data

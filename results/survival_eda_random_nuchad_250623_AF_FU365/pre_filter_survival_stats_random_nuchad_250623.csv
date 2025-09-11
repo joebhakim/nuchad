@@ -1,0 +1,9 @@
+Statistic,Value
+Total Patients,136695.0
+Events (Strokes),10763.0
+Censored,125932.0
+Median Follow-up (days),797.0
+Mean Follow-up (days),1217.174527232159
+Min Follow-up (days),0.0
+Max Follow-up (days),6908.0
+Event Rate (%),7.873733494275577

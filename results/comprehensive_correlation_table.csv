@@ -1,0 +1,27 @@
+Analysis Type,Dataset,Event Definition,Treatment Stratum,N Events,N Total,Event Rate (%),Age Correlation (r),Age p-value,Age Significance,CHADS-VASc Correlation (r),CHADS-VASc p-value,CHADS-VASc Significance,Risk Gradient (%),Good Correlation
+Basic Event Definitions,NEW,Any stroke_1Y value,All patients,24081,136695,17.6166,0.0029,0.2918,ns,0.0013,0.6373,ns,0.2683,False
+Basic Event Definitions,NEW,Has stroke date,All patients,24081,136695,17.6166,0.0029,0.2918,ns,0.0013,0.6373,ns,0.2683,False
+Basic Event Definitions,NEW,stroke_1Y = 1,All patients,3540,136695,2.5897,-0.0007,0.7892,ns,-0.0002,0.9397,ns,0.0492,False
+Basic Event Definitions,NEW,stroke_1Y = 2,All patients,7223,136695,5.284,0.0004,0.8746,ns,-0.0012,0.6483,ns,0.0836,False
+Basic Event Definitions,NEW,stroke_1Y = 3,All patients,5213,136695,3.8136,0.0061,0.0239,*,0.0067,0.013,*,0.4581,False
+Basic Event Definitions,NEW,stroke_1Y = 4,All patients,8105,136695,5.9293,-0.0003,0.9193,ns,-0.0021,0.4413,ns,0.1892,False
+Basic Event Definitions,NEW,stroke_1Y Missing,All patients,112614,136695,82.3834,-0.0029,0.2918,ns,-0.0013,0.6373,ns,0.2683,False
+Basic Event Definitions,NEW,stroke_1Y=1 AND has date,All patients,3540,136695,2.5897,-0.0007,0.7892,ns,-0.0002,0.9397,ns,0.0492,False
+Basic Event Definitions,OLD,Has stroke date,All patients,15976,128590,12.424,,,N/A,,,N/A,6.0115,False
+Basic Event Definitions,OLD,stroke_1Y = 1,All patients,8748,128590,6.803,,,N/A,,,N/A,5.441,False
+Basic Event Definitions,OLD,stroke_1Y = 2,All patients,119842,128590,93.197,,,N/A,,,N/A,5.441,False
+Basic Event Definitions,OLD,stroke_1Y=1 AND has date,All patients,8748,128590,6.803,,,N/A,,,N/A,5.441,False
+Date-Based Definitions,NEW,Any stroke after AF,All patients,15976,136695,11.6873,0.0036,0.1853,ns,0.003,0.2605,ns,0.4391,False
+Date-Based Definitions,NEW,Stroke 0-365 days after AF,All patients,8748,136695,6.3996,0.0042,0.1196,ns,0.005,0.0638,ns,0.4899,False
+Date-Based Definitions,NEW,Stroke 1-365 days after AF,All patients,3535,136695,2.586,-0.0009,0.7446,ns,-0.0004,0.8907,ns,0.0492,False
+Date-Based Definitions,NEW,Stroke before AF,All patients,8105,136695,5.9293,-0.0003,0.9193,ns,-0.0021,0.4413,ns,0.1892,False
+Date-Based Definitions,NEW,Stroke same day as AF,All patients,5213,136695,3.8136,0.0061,0.0239,*,0.0067,0.013,*,0.4581,False
+Date-Based Definitions,OLD,Any stroke after AF,All patients,15976,128590,12.424,,,N/A,,,N/A,6.0115,False
+Date-Based Definitions,OLD,Stroke 0-365 days after AF,All patients,8748,128590,6.803,,,N/A,,,N/A,5.441,False
+Date-Based Definitions,OLD,Stroke 1-365 days after AF,All patients,3535,128590,2.749,,,N/A,,,N/A,1.7677,False
+Date-Based Definitions,OLD,Stroke same day as AF,All patients,5213,128590,4.054,,,N/A,,,N/A,3.6733,False
+Treatment-Stratified,NEW,stroke_1Y = 1,Antiplatelet only,244,10927,2.233,0.0076,0.4247,ns,0.0068,0.4758,ns,1.0752,False
+Treatment-Stratified,NEW,stroke_1Y = 1,Both treatments,24,1704,1.4085,0.0139,0.5671,ns,-0.0137,0.5708,ns,0.6828,False
+Treatment-Stratified,NEW,stroke_1Y = 1,No treatment,3117,117129,2.6612,-0.0031,0.2918,ns,-0.0015,0.606,ns,0.0983,False
+Treatment-Stratified,NEW,stroke_1Y = 1,OAC only,155,6935,2.235,0.0256,0.0332,*,0.0143,0.2343,ns,0.8666,True
+Treatment-Stratified,OLD,stroke_1Y = 1,On OAC,8748,128590,6.803,,,N/A,,,N/A,5.441,False

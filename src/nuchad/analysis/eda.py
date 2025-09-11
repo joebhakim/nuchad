@@ -76,9 +76,9 @@ def prepare_survival_data(df: pd.DataFrame) -> pd.DataFrame:
     # Calculate survival time (time to event or censoring)
     survival_df['survival_time'] = (survival_df['end_fu'] - survival_df['time1']).dt.days
     
-    # Create event indicator (1 if stroke occurred, 0 if censored)
+    # Create event indicator (1 if stroke occurred (BUT ONLY AFTER TIME1), 0 if censored)
     survival_df['event'] = 0
-    stroke_mask = pd.notna(survival_df['earliest_stroke_date'])
+    stroke_mask = pd.notna(survival_df['earliest_stroke_date']) & (survival_df['earliest_stroke_date'] > survival_df['time1'])
     survival_df.loc[stroke_mask, 'event'] = 1
     
     # For patients with stroke, use time to stroke as survival time
@@ -87,9 +87,20 @@ def prepare_survival_data(df: pd.DataFrame) -> pd.DataFrame:
         survival_df.loc[stroke_mask, 'time1']
     ).dt.days
     
-    # Remove patients with negative or zero survival time
-    survival_df = survival_df[survival_df['survival_time'] > 0]
+    # No patients should have negative survival time since we .loc[stroke_mask, ...]
+    if survival_df[survival_df['survival_time'] < 0].shape[0] > 0:
+        print('Warning: Some patients have negative survival time')
+        print(survival_df[survival_df['survival_time'] < 0])
+        raise ValueError("Some patients have negative survival time")
     
+    # Some patients have 0 survival time: guess these people came in and WHOOPS they've had AF for a while
+    # This is credible, and we have to figure out what to do with these
+    #TODO: sensitivtiy analysis for this
+    if survival_df[survival_df['survival_time'] == 0].shape[0] > 0:
+        print('Warning: Some patients have 0 survival time, TODO sensitivity analysis')
+        print(survival_df[survival_df['survival_time'] == 0])
+    
+
     return survival_df
 
 
@@ -176,15 +187,41 @@ def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100,
         column_widths=[0.4, 0.3, 0.3],
         specs=[[{"type": "scatter"}, {"type": "heatmap"}, {"type": "heatmap"}]],
         horizontal_spacing=0.02,
-        subplot_titles=("Patient Timelines", "Categorical Variables", "Continuous Variables")
+        subplot_titles=("Patient Timelines", "Categorical Variables", "Continuous Variables"),
     )
     
     # Timeline visualization
+
+    # New data, time columns:
+    # All time columns: earliest_af_date,earliest_stroke_date,earliest_tia_date ,end_fu,first_OAC_date, first_antiplatelet_date
+
     for idx, (_, patient) in enumerate(sample_df.iterrows()):
         # Base observation period
         start_time = patient['time1']
         end_time = patient['end_fu']
         
+       # this is all cols minus time1 and end_fu
+        time_columns_points = ['earliest_af_date', 'earliest_stroke_date', 'earliest_tia_date',
+                                'first_OAC_date', 'first_antiplatelet_date']
+
+        markers = ['star','hash-open','bowtie-open','star-diamond','hexagon-open','cross-dot','diamond-open-dot']
+        colors = ['red','blue','green','purple','orange','brown','pink']
+
+        for i, time_col_point in enumerate(time_columns_points):           
+            if time_col_point in patient and pd.notna(patient[time_col_point]):
+                fig.add_trace(
+                    go.Scatter(
+                        x=[patient[time_col_point]],
+                        y=[idx],
+                        mode='markers',
+                        marker=dict(symbol=markers[i], size=8, color=colors[i]),
+                        showlegend=False,
+                        hovertemplate=f'Patient {idx}<br>{time_col_point}: %{{x}}<extra></extra>'
+                    ),
+                    row=1, col=1
+                )
+        
+
         # Handle missing end_fu
         if pd.isna(end_time):
             end_time = start_time + pd.Timedelta(days=365)  # Default 1 year
@@ -205,20 +242,6 @@ def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100,
             row=1, col=1
         )
         
-        # Add stroke event if present
-        if pd.notna(patient['earliest_stroke_date']):
-            fig.add_trace(
-                go.Scatter(
-                    x=[patient['earliest_stroke_date']],
-                    y=[idx],
-                    mode='markers',
-                    marker=dict(symbol='star', size=8, color='red'),
-                    showlegend=False,
-                    hovertemplate=f'Patient {idx}<br>Stroke: %{{x}}<extra></extra>'
-                ),
-                row=1, col=1
-            )
-        
         # Add missing end_fu marker
         if pd.isna(patient['end_fu']):
             fig.add_trace(
@@ -226,12 +249,14 @@ def create_timeline_visualization(df: pd.DataFrame, n_sample: int = 100,
                     x=[end_time],
                     y=[idx],
                     mode='markers',
-                    marker=dict(symbol='x', size=8, color='black'),
+                    marker=dict(symbol='?', size=8, color='black'),
                     showlegend=False,
                     hovertemplate=f'Patient {idx}<br>Missing end_fu<extra></extra>'
                 ),
                 row=1, col=1
             )
+   
+        
     
     # Categorical variables heatmap
     categorical_vars = ['gender', 'hypertension', 'diab', 'hf', 'ckd', 'vasc_dis_mi_pad', 'af']
@@ -332,8 +357,8 @@ def create_survival_statistics_table(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(list(stats.items()), columns=['Statistic', 'Value'])
 
 
-def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = True, 
-                     post_filter: bool = True, sample_size: int = 100, 
+def run_survival_eda(data_file: str = "random_nuchad.csv", no_pre_filter: bool = False, 
+                     no_post_filter: bool = False, sample_size: int = 100, 
                      filter_config: Optional[str] = None) -> None:
     """
     Run comprehensive survival-focused EDA.
@@ -361,9 +386,12 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
     # Load data
     df = get_df(data_file)
     print(f"Loaded {len(df)} patients from {data_file}")
+
+    # Check how many have missing stroke_1Y
+    print('Missing stroke_1Y: ' + str(len(df[df['stroke_1Y'].isna()])))
     
     # Pre-filter analysis
-    if pre_filter:
+    if no_pre_filter:
         print(f"\n=== PRE-FILTER ANALYSIS ({data_file}) ===")
         
         # Create survival statistics
@@ -405,7 +433,7 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
         print(f"Saved timeline visualization to {timeline_html_path}")
     
     # Post-filter analysis
-    if post_filter:
+    if no_post_filter:
         filter_desc = f"using {filter_config} config" if filter_config else "using default filters"
         print(f"\n=== POST-FILTER ANALYSIS ({data_file}) {filter_desc} ===")
         
@@ -480,16 +508,17 @@ def run_survival_eda(data_file: str = "random_nuchad.csv", pre_filter: bool = Tr
     print(f"\nAll outputs saved to {data_results_dir}")
 
 
-def run_survival_eda_all_datasets(pre_filter: bool = True, post_filter: bool = True, 
+def run_survival_eda_all_datasets(no_pre_filter: bool = False, no_post_filter: bool = False, 
                                   sample_size: int = 100, filter_config: Optional[str] = None) -> None:
     """Run survival EDA on all available datasets."""
     
     # Find all data files
     data_files = ["random_nuchad.csv", "random_nuchad_250623.csv"]
     
+    
     for data_file in data_files:
         try:
-            run_survival_eda(data_file, pre_filter, post_filter, sample_size, filter_config)
+            run_survival_eda(data_file, no_pre_filter, no_post_filter, sample_size, filter_config)
         except FileNotFoundError:
             print(f"Skipping {data_file} - file not found")
         except Exception as e:
