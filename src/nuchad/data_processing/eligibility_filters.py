@@ -54,6 +54,11 @@ def load_filtering_config(config_path: Union[str, Path]) -> Dict[str, Any]:
             'enabled': False,
             'include_values': [1, 2],
             'exclude_pre_af_strokes': False
+        },
+        'anticoagulant_filter': {
+            'enabled': False,
+            'require_anticoagulant': True,
+            'dataset_type': 'auto'
         }
     }
     
@@ -63,6 +68,87 @@ def load_filtering_config(config_path: Union[str, Path]) -> Dict[str, Any]:
             config['filters'][key] = default_value
     
     return config
+
+
+def detect_anticoagulant_old(df: pd.DataFrame) -> pd.Series:
+    """
+    Detect anticoagulant use in old dataset format.
+    
+    Args:
+        df: DataFrame with patient data (old format)
+        
+    Returns:
+        Boolean Series indicating anticoagulant use
+    """
+    if 'Anticoagulant' not in df.columns:
+        return pd.Series(False, index=df.index)
+    
+    # In old dataset, anticoagulant use is indicated by any value other than "No anticoagulant"
+    return df['Anticoagulant'] != 'No anticoagulant'
+
+
+def detect_anticoagulant_new(df: pd.DataFrame) -> pd.Series:
+    """
+    Detect anticoagulant use in new dataset format.
+    
+    Args:
+        df: DataFrame with patient data (new format)
+        
+    Returns:
+        Boolean Series indicating anticoagulant use (oral anticoagulants or antiplatelets)
+    """
+    anticoag_mask = pd.Series(False, index=df.index)
+    
+    # Check for oral anticoagulants within 3 months
+    if 'Anticoag3m_type' in df.columns:
+        # Exclude "No anticoagulant" entries
+        anticoag_mask |= (df['Anticoag3m_type'].notna() & 
+                         (df['Anticoag3m_type'] != '') & 
+                         (df['Anticoag3m_type'] != 'No anticoagulant'))
+    
+    # Check for first OAC date (presence indicates OAC use)
+    if 'first_OAC_date' in df.columns:
+        anticoag_mask |= df['first_OAC_date'].notna()
+    
+    # Check for antiplatelet therapy within 3 months  
+    if 'Antiplatelet3m' in df.columns:
+        # Antiplatelet3m appears to be binary (0/1), so check for 1
+        anticoag_mask |= (df['Antiplatelet3m'] == 1)
+    
+    # Check for first antiplatelet date (presence indicates antiplatelet use)
+    if 'first_antiplatelet_date' in df.columns:
+        anticoag_mask |= df['first_antiplatelet_date'].notna()
+    
+    return anticoag_mask
+
+
+def detect_anticoagulant(df: pd.DataFrame, dataset_type: str = "auto") -> pd.Series:
+    """
+    Detect anticoagulant use with automatic dataset type detection.
+    
+    Args:
+        df: DataFrame with patient data
+        dataset_type: "old", "new", or "auto" for automatic detection
+        
+    Returns:
+        Boolean Series indicating anticoagulant use
+    """
+    if dataset_type == "auto":
+        # Auto-detect dataset type based on available columns
+        if 'Anticoagulant' in df.columns:
+            dataset_type = "old"
+        elif any(col in df.columns for col in ['Anticoag3m_type', 'first_OAC_date', 'Antiplatelet3m', 'first_antiplatelet_date']):
+            dataset_type = "new"
+        else:
+            # Default to False if no anticoagulant columns found
+            return pd.Series(False, index=df.index)
+    
+    if dataset_type == "old":
+        return detect_anticoagulant_old(df)
+    elif dataset_type == "new":
+        return detect_anticoagulant_new(df)
+    else:
+        raise ValueError(f"Unknown dataset_type: {dataset_type}. Use 'old', 'new', or 'auto'")
 
 
 def get_available_configs() -> List[str]:
@@ -91,6 +177,7 @@ def filter_eligible_patients(
     min_follow_up_days: int = 365,
     stroke_window_days: int = 365,
     stroke_outcome_filter: Optional[Dict[str, Any]] = None,
+    anticoagulant_filter: Optional[Dict[str, Any]] = None,
     config_name: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """Filter dataframe to eligible patients based on criteria.
@@ -104,6 +191,7 @@ def filter_eligible_patients(
         min_follow_up_days: Minimum follow-up period in days
         stroke_window_days: Window after time1 in which stroke must occur (if required)
         stroke_outcome_filter: Dictionary with stroke outcome filtering parameters
+        anticoagulant_filter: Dictionary with anticoagulant filtering parameters
         config_name: Name of the configuration used (for metadata)
         
     Returns:
@@ -234,6 +322,37 @@ def filter_eligible_patients(
             "percent_remaining": round(patients_after / filter_stats["total"] * 100, 1)
         })
     
+    # Apply anticoagulant filter if specified
+    if anticoagulant_filter and anticoagulant_filter.get('enabled', False):
+        require_anticoag = anticoagulant_filter.get('require_anticoagulant', True)
+        dataset_type = anticoagulant_filter.get('dataset_type', 'auto')
+        
+        # Create filter description
+        filter_description = f"{'Anticoagulant use required' if require_anticoag else 'No anticoagulant use'}"
+        
+        # Detect anticoagulant use
+        anticoag_use = detect_anticoagulant(current_df, dataset_type)
+        
+        # Create the mask based on requirement
+        if require_anticoag:
+            mask = anticoag_use
+        else:
+            mask = ~anticoag_use
+        
+        filter_stats["filter_masks"]["anticoagulant"] = mask
+        filter_stats["filter_descriptions"]["anticoagulant"] = filter_description
+        
+        patients_before = len(current_df)
+        current_df = current_df[mask]
+        patients_after = len(current_df)
+        
+        filter_stats["steps"].append({
+            "description": filter_description,
+            "remaining": patients_after,
+            "removed": patients_before - patients_after,
+            "percent_remaining": round(patients_after / filter_stats["total"] * 100, 1)
+        })
+    
     # Add configuration metadata to filter stats
     if config_name:
         filter_stats["config_name"] = config_name
@@ -272,6 +391,7 @@ def filter_patients_from_config(
         min_follow_up_days=filters['min_follow_up_days'],
         stroke_window_days=filters['stroke_window_days'],
         stroke_outcome_filter=filters['stroke_outcome_filter'],
+        anticoagulant_filter=filters.get('anticoagulant_filter'),
         config_name=config['name']
     )
 

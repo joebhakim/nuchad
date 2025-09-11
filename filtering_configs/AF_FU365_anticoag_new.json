@@ -1,0 +1,28 @@
+{
+  "name": "AF Population with Anticoagulation (New Dataset)",
+  "description": "AF patients with 1-year follow-up who are receiving anticoagulation therapy. Uses multiple columns from new dataset: 'Anticoag3m_type', 'first_OAC_date', 'Antiplatelet3m', 'first_antiplatelet_date'.",
+  "dataset_compatibility": ["new"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": false,
+    "af_before_time1": true,
+    "min_follow_up_days": 365,
+    "stroke_window_days": 365,
+    "stroke_outcome_filter": {
+      "enabled": false,
+      "include_values": [1, 2],
+      "exclude_pre_af_strokes": false
+    },
+    "anticoagulant_filter": {
+      "enabled": true,
+      "require_anticoagulant": true,
+      "dataset_type": "new"
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "No-separation analysis stratified by anticoagulation status",
+    "notes": "Filters for patients receiving anticoagulation therapy in the new dataset. Checks for oral anticoagulants (Anticoag3m_type, first_OAC_date) and antiplatelets (Antiplatelet3m, first_antiplatelet_date)."
+  }
+}

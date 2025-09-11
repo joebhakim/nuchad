@@ -1,0 +1,28 @@
+{
+  "name": "AF Population without Anticoagulation (Original Dataset)",
+  "description": "AF patients with 1-year follow-up who are NOT receiving anticoagulation therapy. Uses 'Anticoagulant' column from original dataset to identify non-users ('No anticoagulant').",
+  "dataset_compatibility": ["original"],
+  "filters": {
+    "require_af": true,
+    "require_follow_up": true,
+    "require_stroke": false,
+    "af_before_time1": true,
+    "min_follow_up_days": 365,
+    "stroke_window_days": 365,
+    "stroke_outcome_filter": {
+      "enabled": false,
+      "include_values": [1, 2],
+      "exclude_pre_af_strokes": false
+    },
+    "anticoagulant_filter": {
+      "enabled": true,
+      "require_anticoagulant": false,
+      "dataset_type": "original"
+    }
+  },
+  "metadata": {
+    "created_date": "2025-01-08",
+    "use_case": "No-separation analysis stratified by anticoagulation status",
+    "notes": "Filters for patients NOT receiving anticoagulation therapy in the original dataset. Uses 'Anticoagulant' column where value is 'No anticoagulant'."
+  }
+}

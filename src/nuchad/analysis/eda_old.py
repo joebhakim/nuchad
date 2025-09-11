@@ -5,7 +5,7 @@ import numpy as np
 from scipy.stats import poisson
 import os
 
-from nuchad.utils import get_data_file, get_results_dir
+from nuchad.utils import get_data_file, get_results_dir, calculate_chadsvasc as calculate_chadsvasc_utils
 from nuchad.data_processing.eligibility_filters import (
     filter_eligible_patients as filter_eligible_patients_util,
 )
@@ -71,24 +71,8 @@ def get_df(data_file="random_nuchad.csv"):
 
 ## Validating chadsvasc
 def calculate_chadsvasc(row):
-    """Calculates the CHADS-VASc score for a single patient (row of a DataFrame)."""
-    score = 0
-    # Congestive heart failure
-    score += int(row["hf"])
-    # Hypertension
-    score += int(row["hypertension"])
-    # Age >= 75
-    score += 2 * int(row["age"] >= 75)
-    score += int(65 <= row["age"] < 75)
-    # Diabetes mellitus
-    score += int(row["diab"])
-    # Stroke/TIA/Thromboembolism
-    score += 2 * int(row["thrombo"] or row["HB_stroke_history"])
-    # Vascular disease
-    score += int(row["vasc_dis_mi_pad"])
-    # Sex (Female)
-    score += int(row["gender"] != 1)
-    return score
+    """Proxy to canonical CHADS-VASc scoring in nuchad.utils."""
+    return calculate_chadsvasc_utils(row)
 
 
 def calculate_stroke_rate(group, total_patients, total_years, event_col="stroke_1Y"):

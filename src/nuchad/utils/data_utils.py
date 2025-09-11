@@ -148,11 +148,14 @@ def calculate_chadsvasc(row: Union[pd.Series, dict]) -> int:
     # Stroke/TIA/Thromboembolism (2 points)
     thrombo = safe_get_int("thrombo")
     stroke_history = safe_get_int("HB_stroke_history")
-    if thrombo or stroke_history:
+    stroke_tia_hx = safe_get_int("Stroke_TIA_hx")
+    if thrombo or stroke_history or stroke_tia_hx:
         score += 2
     
-    # Vascular disease (1 point)
-    score += safe_get_int("vasc_dis_mi_pad")
+    # Vascular disease (1 point) – MI/PAD or aortic plaque
+    vasc = safe_get_int("vasc_dis_mi_pad")
+    aortic_plaq = safe_get_int("aortic_plaq")
+    score += 1 if (vasc or aortic_plaq) else 0
     
     # Sex - Female (1 point)
     # Assuming: 1 = male, 2 = female (common coding)
