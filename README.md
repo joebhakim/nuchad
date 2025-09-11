@@ -26,6 +26,39 @@ uv init --package .
 uv add -e .
 ```
 
+## NOtes on the target trial emulation
+
+We have patients with lots of non conforming elig criteria
+
+Look at filtering configs.
+Do we inlcude in our analyses, yes or no,
+
+patients with less than 365 days FU? yes, do careful censorship analysis, report discrete hazards
+- normalize stroke rate by number remaining at risk
+- For 1011 data, end_fu < or > stroke TIME (and TIA time for secondary metric, maybe death as end_fu, but no separate death time)
+
+for stroke before AF: 
+
+patid,AF_date,stroke_date
+8676,29-Apr-10,06-Nov-09 # af after stroke: exlcude
+9138,21-Apr-04,21-Apr-04 # af during stroke: (actualy loosen this to plus minus 7 days), include
+9263,19-Oct-09,18-Sep-12 # af before stroke: include. this person had >1 year stroke free, then stroke
+- HOWEVER, for stroke date >1 year after AF date, dont have this in direct stroke rate calculation (like study). include it as secondary outcome.
+
+antiplatelets and anticoag: even if on them the whole time, TREAET THIS as another confoudning variable and use in weighting. 
+- dates: 
+- we need to BIN the anticoagulant dates to accomodate for the variable shift: do weighting based on different rates of anticoag at month long windows
+-- dont have original dates, so sensitivty analysis like assumption: poisson process with average: 1 or 2 days and tail of like 1 2 months
+
+And repeat this whole analysis by year. ALSO, the above moving poisson thing can be estimated by extrapolating how the time course of anticoag in repsonse to AF shifts year over year
+
+Three sets of (rates, average time conditional on "yes")
+
+
+
+
+
+
 ## Usage
 
 The package can be used in two ways:
